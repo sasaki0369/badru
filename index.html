@@ -80,14 +80,60 @@ html,body{
 .side.serving{ background:rgba(255,212,0,0.05); }
 
 .score-num{
-  font-size:min(28vw, 42vh);
-  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:1.4vw;
+}
+
+/* ---------- フリップボード風スコアカード ---------- */
+.flip-card{
+  position:relative;
+  height:min(38vh, 32vw);
+  aspect-ratio:0.68;
+  background:linear-gradient(180deg, #1e1e1e 0%, #131313 49%, #0c0c0c 51%, #060606 100%);
+  border:1px solid #2e2e2e;
+  border-radius:10px;
+  box-shadow:0 10px 22px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.05);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  flex-shrink:0;
+}
+.flip-card::before{
+  content:'';
+  position:absolute;
+  left:5%; right:5%; top:50%;
+  height:2px;
+  background:rgba(0,0,0,0.55);
+  box-shadow:0 1px 0 rgba(255,255,255,0.05);
+}
+.flip-card .ring{
+  position:absolute;
+  top:-6%;
+  width:11%;
+  aspect-ratio:1;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #d8d8d8, #7a7a7a 55%, #3a3a3a 100%);
+  box-shadow:0 1px 2px rgba(0,0,0,0.7);
+}
+.flip-card .ring.l{ left:14%; }
+.flip-card .ring.r{ right:14%; }
+.flip-card .digit{
+  font-size:68%;
+  font-weight:900;
   line-height:1;
   color:var(--white);
-  letter-spacing:-0.02em;
   font-variant-numeric:tabular-nums;
+  text-shadow:0 3px 0 rgba(0,0,0,0.55);
+  -webkit-text-stroke:0.5px rgba(0,0,0,0.25);
+  transform:translateY(-2%);
+  transition:color .15s;
 }
-.side.serving .score-num{ color:var(--yellow); }
+.side.serving .flip-card .digit{ color:var(--yellow); }
+.flip-card:nth-child(1){ transform:rotate(-1.6deg); }
+.flip-card:nth-child(2){ transform:rotate(1.2deg); }
 
 .court-slots{
   display:flex;
@@ -572,13 +618,13 @@ table.sheet-log th{ color:#888; font-weight:600; }
    ここに設定してください。データは badoru/ 以下に保存されます。
 ============================================================ */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBf5AlMcg8CCmLlhWzpEvk6-rpfzkZj6Xs",
+  authDomain: "event-now2.firebaseapp.com",
+  databaseURL: "https://event-now2-default-rtdb.firebaseio.com",
+  projectId: "event-now2",
+  storageBucket: "event-now2.firebasestorage.app",
+  messagingSenderId: "716003781272",
+  appId: "1:716003781272:web:4a97be8c446d843ca07eed"
 };
 
 let dbReady = false;
@@ -722,8 +768,7 @@ firstServerSel.addEventListener('change', updateReceiverOptions);
 });
 
 refreshPlayerSelects();
-
-/* ---------- 試合開始 ---------- */
+showSettings();
 document.getElementById('startBtn').addEventListener('click', ()=>{
   settingsErr.textContent = '';
   const players = currentPlayers();
@@ -954,13 +999,24 @@ function renderSlots(container, team){
   });
 }
 
+function renderScoreCards(container, score){
+  container.innerHTML = '';
+  const digits = String(score).split('');
+  digits.forEach(ch=>{
+    const card = document.createElement('div');
+    card.className = 'flip-card';
+    card.innerHTML = '<span class="ring l"></span><span class="ring r"></span><span class="digit">' + ch + '</span>';
+    container.appendChild(card);
+  });
+}
+
 function render(){
   if(!state) return;
   const leftTeam = state.leftTeam;
   const rightTeam = otherTeam(leftTeam);
 
-  scoreLeftNum.textContent = state.score[leftTeam];
-  scoreRightNum.textContent = state.score[rightTeam];
+  renderScoreCards(scoreLeftNum, state.score[leftTeam]);
+  renderScoreCards(scoreRightNum, state.score[rightTeam]);
 
   sideLeftEl.classList.toggle('serving', state.serverTeam === leftTeam);
   sideRightEl.classList.toggle('serving', state.serverTeam === rightTeam);
