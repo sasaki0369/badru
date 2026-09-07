@@ -768,7 +768,6 @@ firstServerSel.addEventListener('change', updateReceiverOptions);
 });
 
 refreshPlayerSelects();
-showSettings();
 document.getElementById('startBtn').addEventListener('click', ()=>{
   settingsErr.textContent = '';
   const players = currentPlayers();
@@ -1192,6 +1191,9 @@ if(dbReady){
 
 /* ---------- 画面向き変更時の再描画 ---------- */
 window.addEventListener('resize', ()=>{ if(state) render(); });
+
+/* ---------- 初期表示 ---------- */
+showSettings();
 </script>
 </body>
 </html>
