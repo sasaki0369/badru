@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="バドる">
+<meta name="mobile-web-app-capable" content="yes">
+<title>バドる</title>
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAFLElEQVR4nO3dQY7bOBBGYTroI/ga1ib3P8JsqGOM78As0ko0GlkiRUms+vk+wMAAcWwaeK4pKUHnEUJIARDxo/UBgDMRNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKQQNKR8tT6AovRP3vMeP689R48egR+nWy034D0EXo+gK5wV8hJhH0fQB1wV8hJhlyPoAneFvETY+bjLkalVzK3f2xsm9A5rMTGttzGhN1iLOQSbZ7KEoD+wHI7ls7VG0Cs8BOPhjC0QNKQQ9IKnyefprHch6BmPgXg885UIGlII+pvnSef57GcjaEgh6KAx4RQ+wxkIGlK6D1ppsil9lqO6DxpaCBpSCBpSug5acedU/Ewlug4aeggaUggaUggaUggaUggaUggaUggaUggaUggaUroOWvHHail+phJdBw09BA0pBA0p3QettHMqfZajug8aWgg6aEw2hc9wBoKGFIL+5nnCeT772QgaUgh6xuOk83jmKxF0CCHG+Oe/PQXi6ax3IehvKaV36zOgXvdBxxjD6/V6h/A3ag+Tz8MZW+g+6CUPUVs+W2tdBz2fznOWo7Z4Jku+Wh/AonEcnyml9+PxeE4Btf4RW4Scp9sJ/Wk6z80vFFsGRcz5mNA7pkkdwt+w7prWhFzuEUJIrQ9xt63pPI7j89OvTWFPrgqbkI9jQheYT+sQzp/YhFyvuwl9dDrPnzMMw+Z75AZOwOdjQl+AUNvp6i5H7XTeet2U0nt61J0SNboKutbaurH2JZn/ZSfcq5ugc+47w78ugt6LuWbdWHutvYtGXKeLoNEP+aDPms5MXh/kg0ZfpIPmQrA/0kHvqb0Y5Atjj2zQZ8bG/uyHbNB7zrxVBzskg2YV6Jdk0HtKpjPrhi9yQbeczsTfnlzQd2GtsUkq6JzIuBjUJhP0FROTFcIfmaBzMJ31SQTNPouJRNDAxH3QudO5dN1gf/bJfdAtsOLY5Troq6Yz/HId9FWOrBusKDa4DZr/7WON26BzsW70xWXQTGd84jLoXEem894uzJfJNndBExS2uAq6JGZ25z65ChrY4yboO1YN7iX75yboEqwb/XIRtPULQSa7HS6CLnF0OudEaf2LBQdBExFKmA8aKGE66NLpzMUgTAd9Fy7qdJgNmumMI8wGDRxhMmiLdzYsngn/ZzLoUjXrBvuzFnNBe5uEfCFsMRX0kZi5GMScqaDvxnTVYyZopjPOYCZoy7zt9T0zETTB4Cwmgj6idt1gf9bUPGimM87UPOgjuBjEJ02D9jKdh2EI4zg+W58D+1xO6Nfr9a4J7Kz9mT3cnmZB107n2qihyeWEnhA1lpoEHWM89fVKoq5ZE/jy2PfV4k2noGKM/wnk6AoyTWoPF5i4VpOg5+YRzidg7r+dMn8+UcPsReE4js/psfU6y9e4ei1g7bCt6YRexvFpt11bTZa/d74bxxhXJzW32fQ1CXq6KMyNa/m8KfAp2mWowzB8jBr6ksdHjDGllP6NMe4+Z3psPTfn/Urem0ebh+v70HsrxJV/ZM36YlPzuxxHlKws0/qR+/yt94N9bid0SZxM0r4033usP9Z2ZfZnmw+3ExpY8wi/ywYkMKEhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAhhaAh5RfS/s/AZhooYwAAAABJRU5ErkJggg==">
+<link rel="icon" type="image/png" sizes="192x192" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAFj0lEQVR4nO3dTXKcMBCGYZHyEeYawyb3P0I24hq+A1kkxJjMAAKBuvt7n6pZ5Me2pkpvI3CV3aWUxgSI+tF6AUBLBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpH60XoGT8te//dT+vXQe+dIlfkHGZvRt+C0FchwAqq7Xp3yGGugigkqs3/hIh1EEAJ9298ZcI4RyeAp3QevNbWYNnBHCQpY1naS3ecAQqZH2zcSQqwxWggPXNn5KPNVpCAJBGADt5mqye1toaAezgcUN5XHMLBLDB80byvPa7EACkEcCKCBM0wnu4EgG8EWnjRHovtREApBHACxEnZsT3VAMBQBoBQBoBLEQ+KkR+b0cRAKQRAKQRAKQRwIzCGVnhPZYgAEgjAEgjAEgjAEgjAEgjAEgjAEgjAEgjAEgjAEgjgBmFn6up8B5LEACkEQCkEQCkEcBC5DNy5Pd2FAFAGgFAGgG8EPGoEPE91UAAkEYAb0SamJHeS20EsCLCxonwHq5EAJBGAG/knFNKvieo57XfhQBeyDmn5/P5Of3Z40byuOYWCGDFOI4uI/C01tYIYGE5/ecRIB4C2GGKwMNk9bBGSwhgZjn9l/+W0p8NZnGTWV2XdQRQwOo9gaW1eEMAf61N/2EYHtO/WYvAwho8+2i9AI/+3RN03WPagHf/2HE2fh1dSmlsvYjW9k7/V7que8z/fHUIbPy65K8Aa5t/j/nVIKXvG7RWDGz668gHsGZr+s/lnFPf99/+brlx9wbBhr+PdABnp/9kGIbHcvPvCQLt8RToQuM4fk6v6fsIsEU2gK3pX3L8gV+yAQApiQZQc/q/Ov/DD8kAgIlcALWe/LT+GqhDLoAtHH+0SAXAZMaSVABbePSpRyYApj9ekQjgis1fcv7nXsEuiQD2qHX84UrjS/gA2JBYEz6APUqnP0eaOEIHwPTHltAB7MGjT21hA2D6Y4+wAVyF838sIQPYO/1rH3+46vgTMgBLuGLYFi6AVtMfPoUL4EpM83hCBcAZHKXCBFCy+Tn+YBImgKttHX+4+vgUIgCmP44KEQBwlPsAOHrgDPcBlDh6/OHxZ1yuA7A+/QnHPtcBlODmF6+4DcDS9Le0FpRxG0CJM9OfY0xsLgNg4qIWlwEAtbgLoHT6c/zBGlcBcPRBba4CKHXHo0+i9M1NAN42GscnH9wEcDc2sAYXARyZ/nznF3u4CAC4ivkAWkx/jj86zAcAXMl0ANaf/FhfH7aZDuAIbn5RwmwAraYr538tJgM4uvmZ/ihlMgDvuIr4YS4Apj/uZC6AlkomN0+AYjAVAJsKdzMVwFEcf3CUmQBaT39uXDWZCeAopj/OMBFA6+l/RN/3aRiGR+t14BwTAZzxfD4/2Yg4qnkANab/2Qhqnv+5l/CleQC1cCXAEU0DyDlX/5x3RsB9gH8fLb/4dFTIOX/bRGeORNOVoORXJnFk0dU0gLn5hp1P1ZKNPP+Yu34mEHxrfg+wdRM8DMNj/tr7ee+6J+DewzcTV4DlBtr4daT/HZemj19eRfq+TznnS68EbH7fmgYwHSFKzuDL/7sMIqXv5/q1CDj/o+kRqO/7os3/7nOk9DX9X21qntbgneb3ADWtTfSrIpgiJjCfwgSw5zhz9UblSOWPiZvgM0rvI6Z7gpKPWfu68C3EFaB0IzOlMTfyKn/lnHf9HS/brxBXAOCoLv0pAZDEFQDSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSCADSfgNVKT1ttM81TAAAAABJRU5ErkJggg==">
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIuODkOODieOCiyIsICJzaG9ydF9uYW1lIjogIuODkOODieOCiyIsICJkZXNjcmlwdGlvbiI6ICLjg5Djg4njg5/jg7Pjg4jjg7Plvpfngrnmnb/jgqLjg5fjg6oiLCAic3RhcnRfdXJsIjogIi4vaW5kZXguaHRtbCIsICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLCAib3JpZW50YXRpb24iOiAibGFuZHNjYXBlIiwgImJhY2tncm91bmRfY29sb3IiOiAiIzAwMDAwMCIsICJ0aGVtZV9jb2xvciI6ICIjMDAwMDAwIiwgImljb25zIjogW3sic3JjIjogImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxpVkJPUncwS0dnb0FBQUFOU1VoRVVnQUFBTUFBQUFEQUNBWUFBQUJTM0d3SEFBQUZqMGxFUVZSNG5PM2RUWEtjTUJDR1laSHlFZVlhd3liM1AwSTI0aHErQTFra3hKak1BQUtCdXZ0N242cFo1TWUycGtwdkkzQ1YzYVdVeGdTSSt0RjZBVUJMQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwQkFCcEJBQnBCQUJwSDYwWG9HVDh0ZS8vZFQrdlhRZStkSWxma0hHWnZSdCtDMEZjaHdBcXE3WHAzeUdHdWdpZ2txczMvaEloMUVFQUo5Mjk4WmNJNFJ5ZUFwM1Fldk5iV1lObkJIQ1FwWTFuYVMzZWNBUXFaSDJ6Y1NRcXd4V2dnUFhObjVLUE5WcENBSkJHQUR0NW1xeWUxdG9hQWV6Z2NVTjVYSE1MQkxEQjgwYnl2UGE3RUFDa0VjQ0tDQk0wd251NEVnRzhFV25qUkhvdnRSRUFwQkhBQ3hFblpzVDNWQU1CUUJvQlFCb0JMRVErS2tSK2IwY1JBS1FSQUtRUkFLUVJ3SXpDR1ZuaFBaWWdBRWdqQUVnakFFZ2pBRWdqQUVnakFFZ2pBRWdqQUVnakFFZ2pBRWdqZ0JtRm42dXA4QjVMRUFDa0VRQ2tFUUNrRWNCQzVETnk1UGQyRkFGQUdnRkFHZ0c4RVBHb0VQRTkxVUFBa0VZQWIwU2FtSkhlUzIwRXNDTEN4b253SHE1RUFKQkdBRy9rbkZOS3ZpZW81N1hmaFFCZXlEbW41L1A1T2YzWjQwYnl1T1lXQ0dERk9JNHVJL0MwMXRZSVlHRTUvZWNSSUI0QzJHR0t3TU5rOWJCR1N3aGdaam45bC8rVzBwOE5abkdUV1YyWGRRUlF3T285Z2FXMWVFTUFmNjFOLzJFWUh0Ty9XWXZBd2hvOCsyaTlBSS8rM1JOMDNXUGFnSGYvMkhFMmZoMWRTbWxzdllqVzlrNy9WN3F1ZTh6L2ZIVUliUHk2NUs4QWE1dC9qL25WSUtYdkc3UldER3o2NjhnSHNHWnIrcy9sbkZQZjk5Lyticmx4OXdiQmhyK1BkQUJucC85a0dJYkhjdlB2Q1FMdDhSVG9RdU00Zms2djZmc0lzRVUyZ0szcFgzTDhnVit5QVFBcGlRWlFjL3EvT3YvREQ4a0FnSWxjQUxXZS9MVCtHcWhETG9BdEhIKzBTQVhBWk1hU1ZBQmJlUFNwUnlZQXBqOWVrUWpnaXMxZmN2N25Yc0V1aVFEMnFIWDg0VXJqUy9nQTJKQllFejZBUFVxblAwZWFPRUlId1BUSGx0QUI3TUdqVDIxaEEyRDZZNCt3QVZ5RjgzOHNJUVBZTy8xckgzKzQ2dmdUTWdCTHVHTFlGaTZBVnRNZlBvVUw0RXBNODNoQ0JjQVpIS1hDQkZDeStUbitZQkltZ0t0dEhYKzQrdmdVSWdDbVA0NEtFUUJ3bFBzQU9IcmdEUGNCbERoNi9PSHhaMXl1QTdBKy9RbkhQdGNCbE9EbUY2KzREY0RTOUxlMEZwUnhHMENKTTlPZlkweHNMZ05nNHFJV2x3RUF0YmdMb0hUNmMvekJHbGNCY1BSQmJhNENLSFhIbzAraTlNMU5BTjQyR3Njbkg5d0VjRGMyc0FZWEFSeVovbnpuRjN1NENBQzRpdmtBV2t4L2pqODZ6QWNBWE1sMEFOYWYvRmhmSDdhWkR1QUlibjVSd213QXJhWXI1Mzh0SmdNNHV2bVovaWhsTWdEdnVJcjRZUzRBcGovdVpDNkFsa29tTjArQVlqQVZBSnNLZHpNVndGRWNmM0NVbVFCYVQzOXVYRFdaQ2VBb3BqL09NQkZBNitsL1JOLzNhUmlHUit0MTRCd1RBWnp4ZkQ0LzJZZzRxbmtBTmFiLzJRaHFudis1bC9DbGVRQzFjQ1hBRVUwRHlEbFgvNXgzUnNCOWdIOGZMYi80ZEZUSU9YL2JSR2VPUk5PVm9PUlhKbkZrMGRVMGdMbjVocDFQMVpLTlBQK1l1MzRtRUh4cmZnK3dkUk04RE1Oai90cjdlZSs2SitEZXd6Y1RWNERsQnRyNGRhVC9IWmVtajE5ZVJmcStUem5uUzY4RWJIN2ZtZ1l3SFNGS3p1REwvN3NNSXFYdjUvcTFDRGovbytrUnFPLzdvczMvN25PazlEWDlYMjFxbnRiZ25lYjNBRFd0VGZTcklwZ2lKakNmd2dTdzV6aHo5VWJsU09XUGladmdNMHJ2STZaN2dwS1BXZnU2OEMzRUZhQjBJek9sTVRmeUtuL2xuSGY5SFMvYnJ4QlhBT0NvTHYwcEFaREVGUURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNDQURTQ0FEU0NBRFNmZ05WS1QxdHRNODFUQUFBQUFCSlJVNUVya0pnZ2c9PSIsICJzaXplcyI6ICIxOTJ4MTkyIiwgInR5cGUiOiAiaW1hZ2UvcG5nIn0sIHsic3JjIjogImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxpVkJPUncwS0dnb0FBQUFOU1VoRVVnQUFBZ0FBQUFJQUNBWUFBQUQwZU5UNkFBQVFha2xFUVZSNG5PM2RRWkxpeGhhR1VkVUxMNkczMFV5OC95VjRRbTJqOThBYnVHbFRsQUFKWlVxWitaOHo2d2cvUHhvcGZMK2JncXFQYVpvdUV3QVE1WDlIdndBQVlIOENBQUFDQ1FBQUNDUUFBQ0NRQUFDQVFBSUFBQUlKQUFBSUpBQUFJSkFBQUlCQUFnQUFBZ2tBQUFna0FBQWdrQUFBZ0VBQ0FBQUNDUUFBQ0NRQUFDQ1FBQUNBUUFJQUFBSUpBQUFJSkFBQUlKQUFBSUJBQWdBQUFna0FBQWdrQUFBZ2tBQUFnRUFDQUFBQ0NRQUFDQ1FBQUNDUUFBQ0FRQUlBQUFJSkFBQUlKQUFBSUpBQUFJQkFBZ0FBQWdrQUFBZ2tBQUFna0FBQWdFQUNBQUFDQ1FBQUNDUUFBQ0NRQUFDQVFBSUFBQUlKQUFBSUpBQUFJSkFBQUlCQUFnQUFBZ2tBQUFna0FBQWdrQUFBZ0VBQ0FBQUNDUUFBQ0NRQUFDQ1FBQUNBUUFJQUFBSUpBQUFJSkFBQUlKQUFBSUJBQWdBQUFna0FBQWdrQUFBZ2tBQUFnRUFDQUFBQ0NRQUFDQ1FBQUNDUUFBQ0FRQUlBQUFJSkFBQUlKQUFBSUpBQUFJQkFBZ0FBQWdrQUFBZ2tBQUFna0FBQWdFQUNBQUFDQ1FBQUNDUUFBQ0NRQUFDQVFBSUFBQUlKQUFBSUpBQUFJSkFBQUlCQUFnQUFBZ2tBQUFqMDE5RXZBS2pqOGsrWmY4L0gzMlgrUFVCYlBxWnB1aHo5SW9EM2xScjBhd2tENkpzQWdJNGNOZXlYRWdYUUR3RUFqV3Q5NkQ4aUJxQnRBZ0FhMU92UWYwUU1RSHNFQURSaXRLSC9pQmlBTmdnQU9Gaks0TDhuQk9CWUFnQU9rRHIwSHhFRHNEOEJBRHN5K0o4VEFyQWZBUUE3TVBqWEVRSlFueDhGREpVWi91dDV6NkErSndCUWlTRldodE1BcUVNQVFHRUdmeDFDQU1yeUNBQUtNdnpyOGQ1Q1dVNEFvQUREYVY5T0EyQTdKd0N3a2VHL1ArODViQ2NBWUFPRDZEamVlOWpHSXdCNGcrSFRGbzhFWUQwbkFMQ1M0ZDhlMXdUV0V3Q3dna0hUTHRjRzFoRUFzSkFCMHo3WENKWVRBTENBd2RJUDF3cVdFUUR3Z29IU0g5Y01YaE1BOElSQjBpL1hEcDRUQVBDQUFkSS8xeEFlRXdBd3crQVloMnNKOHdRQTNERXd4dU9hd25jQ0FHNFlGT055YmVFckFRQy9HUkRqYzQzaFB3SUFKb01oaVdzTi94SUFBQkJJQUJEUFJwakhOUWNCUURpRElKZHJUem9CUUN3REFQY0F5UVFBQUFRU0FFU3krWEhsWGlDVkFDQ08vK0J6enoxQklnRUFBSUVFQUZGc2VqemkzaUNOQUFDQVFBS0FHRFk4WG5HUGtFUUFBRUFnQVVBRW14MUx1VmRJSVFBQUlKQUFZSGcyT3RaeXo1QkFBQUJBSUFIQTBHeHl2TXU5dytnRUFBQUVFZ0FNeXdiSFZ1NGhSaVlBQUNDUUFHQklOamRLY1M4eEtnRUFBSUVFQUFBRUVnQU14NUV0cGJtbkdKRUFBSUJBQWdBQUFna0FodUtvbGxyY1c0eEdBQUJBSUFFQUFJRUVBQUFFRWdBTXd6TmFhbk9QTVJJQkFBQ0JCQUFBQkJJQUFCQklBREFFejJiWmkzdU5VUWdBQUFna0FBQWdrQUFBZ0VBQ0FBQUNDUUFBQ0NRQUFDQ1FBS0I3dnBiRjN0eHpqRUFBQUVBZ0FRQUFnUVFBQUFRU0FBQVFTQUFBUUNBQkFBQ0JCQUFBQkJJQUFCQklBQUJBSUFFQUFJRUVBQUFFRWdBQUVFZ0FBRUFnQVFBQWdRUUFBQVFTQUFBUVNBRFF2WSsvajM0RnBISFBNUUlCQUFDQkJBQUFCQklBQUJCSUFBQkFJQUVBQUlFRUFBQUVFZ0FNd2RleTJJdDdqVkVJQUFBSUpBQUFJSkFBQUlCQUFvQmhlRFpMYmU0eFJpSUFBQ0NRQUFDQVFBSUFBQUlKQUliaUdTMjF1TGNZalFBQWdFQUNBQUFDQ1FDRzQ2aVcwdHhUakVnQUFFQWdBUUFBZ1FRQVEzSmtTeW51SlVZbEFBQWdrQUJnV0RZM3RuSVBNVElCQUFDQkJBQkRzOEh4THZjT294TUFBQkJJQURBOG14eHJ1V2RJSUFBQUlKQUFJSUtOanFYY0s2UVFBQUFRU0FBUXcyYkhLKzRSa2dnQUFBZ2tBSWhpdytNUjl3WnBCQUFBQkJJQXhMSHBjYzg5UVNJQlFDVC93ZWZLdlVBcUFRQUFnUVFBTWM3bjgzUzVYSDVkLzJ6end6MUFNZ0ZBTkFNZ2wydFBPZ0ZBaFBQNVBQMzgrZlBYTkUxZlRnR215U0JJNUpxREFDRFVmUVFBcEJFQURPOTIrNy9sOHdDWlhHdjRsd0NBM3d5Rzhibkc4QjhCd05BZWJmOVhQZytRdzdXRnJ3UUE4VVRBK0Z4VCtFNEFNS3hYMi84dEVUQXUxeExtQ1FENFRRU014eldFeHdRQVExcXovZDhTQWVOdzdlQTVBY0J3M2gzK1Z5S2dmNjRadkNZQVlNYjVmUDd5WndPbEg2NFZMQ01BR01yVzdmK1drNEQrdUVhd25BQ0FPNStmbnovODNvRCt1RGF3amdCZ0dDVzMvMXNpb0gydUNhejMxOUV2QUhwd3VWeCtmWHg4L0xqKytUcHdMdjhjOVlxWUpvTWZ0bkFDd0JCS2JmKzN4Ly8zNW42RG9BRjBITzg5YkNNQVlJWEw1ZkxMSTRIamVjOWh1NDlwbWk1SHZ3allZby90Zjg3dEk0RXJqd1RxTXZpaEhDY0E4Q2FQQlBibHZZV3lmQWlRcnRYNjVQOVMxd2p3QWNGNkRINm93eU1BdWxWeStLODkvcDh6OTBoZ21vVEF1d3grcU1zakFDaGs3Z09DMDJTUXZjTjdCdlU1QWFCTHJXMy85NXdHdk1mZ2gvMzREQUJVTVBmWmdHbnkrWUJIREg3WW53Q2dPMGQvOEcrTlZ5RXdUYmt4WU9qRHNYd0dnR2cxanYvblhDNlhYL2UvWXZqcTQrK3NZWmoyOTRWV09RR2dLejF0LzdjK1B6OS9uRTZucC8vTXlLY0NCajYwUndBUWE2L3QveDBqeElDaEQyMFRBSFNqMSsxL3E1NWl3TkNIZmdnQTZNamNnRDBxQ2d4NzZKdWZBMEFYU20vL2V4Ny9MM24rUCtkOFBrL3YvTyt1U29XQlFROWpjZ0lBRGZ2MnE0Y2YvSUNoT1FZMzhJd0FvSGs5Yi8rbGJRa0NnRnQrRGdCTlMvM2czMUxYM3ovdzZHY01BRHdpQUtDaUxjLy9sNGJQdS84ZlFEWUJRTE5xYlA4OUgvOERsQ1FBQUNDUUFLQkpJMnovanVhQmxna0FBQWdrQUdpT1QvNEQxQ2NBaU9ERGZ3QmZDUUNhTXNyMnYrWDUveWp2QWRBMkFjRHdiUDhBM3drQW1tSHpCZGlQQUlEQzl2ejZuNjhhQXU4U0FEU2gxdmJ2K0I5Z25nRGdjSTcrQWZZbkFCaFdqOXUvR0FMMklnQTQxR2dEenpONW9CY0NnQ0gxdVAwRDdFa0FjSmpSdG4rQW5nZ0FLTVR4UDlBVEFjQWhhbTcvanY4QlhoTUFBQkJJQUxBNzIvKzh0ZStMUnc3QUZnSUFDakNNZ2Q0SUFIYmxrLzhBYlJBQTdLYjI4Ty81K0I5Z2J3SUFBQUlKQUhZeDh2YnYrVC9RSXdFQURmRFpDR0J2QW9EcUREZUE5Z2dBdXVmNEgyQTlBVUJWdHY4NmhBZXdsUUNnYTc3NkIvQWVBVUExdG4rQWRna0FlSk5qZUtCbkFvQXE5dGorUnpuK2QxSUNIRUVBQUVBZ0FVQnhDZHUvNDMrZ2R3S0FvaHhuQS9SQkFBQkFJQUZBTVh0dC8wY2Yvd09NUUFEQVNpV2YvNzhUVFQ1L0FKUWdBQ2pDOWcvUUZ3RUFBSUVFQUpzbGZmTGY4VHN3Q2dGQU54ei9BNVFqQU5na2Fmc0hHSWtBb0F1MmY0Q3lCQUJ2Uzl2K1N6Ly9UM3YvZ0xZSUFBQUlKQUI0eTU3YnErTi9nUElFQUtzNXVqNk9yeUVDcFFnQW10Yks5bS93QXFNUkFLeGkrd2NZZ3dDQUF3Z3A0R2dDZ01YMkhscU8vd0hxRVFBQUVFZ0FzRWpxOWc4d0tnRUFBSUVFQUM4bGIvK2Uvd09qRWdBQUVFZ0E4SlN2cTVYMzdudnFOQUlvU1FEUUZNZi9BUHNRQUR4ayt3Y1lsd0JnMWhIRHY2WHRIMkIwQWdBQUFna0F2bkgwNy9rL01ENEJRQk5TanYvRkZkQUtBY0FYQmhSQUJnSEE0VnJiL2gzL0F3a0VBSC9ZL3RzbFNvRFNCQUFBQkJJQVROTjAzUGJmMnZFL1FBb0JBRGNjdFFNcEJBQzIvNTM0akFYUUVnRVF6bEFDeUNRQUFDQ1FBQWgyNVBiZjR2Ry81LzlBRWdFQUFJRUVRQ2piUDBBMkFRQlQvZVAvTGNIbDBRUlFnd0FJNUpQL0FBZ0FkdVg0SDZBTkFpQ003UitBYVJJQTdLalY3ZDh6ZGlDUkFBaGkrd2ZnU2dBQVFDQUJFT0xvN1QvNStQL285eDVnamdBSVlBQUJjRThBVUYycjJ6OUFNZ0V3T050LzMzeERBYWhGQUJETGNBV1NDWUNCdGJEOU8vNEhhSk1BQUlCQUFtQlF0di9uOWpyK2IrRTZBTXdSQUFBUVNBQU1xSVd0cytYdEh3QUJBQUNSQk1CZ1d0aitXK2ZyZndBQ2dBb2Mvd08wVHdBTXhQYmZscTNYdzBrRlVKTUFHRVFydzkvMkQ5QUhBVUFVV3pYQXZ3VEFBRnJaL2dIb2h3Q2dHTWYvQVAwUUFKMnovUy9uK0IvZ1B3S0FJbXovQUgwUkFCMnovYmZMdFFGYUp3QUFJSkFBNkZSTEcyWVB4Lys5UGYvdjdmVUMvUkVBQUJCSUFIVEk5Zy9BVmdLZ015ME4vMTQ0VGdmNFRnQkFZU0lONklFQTZFaHJnOFh4UDBDL0JBQUFCQklBbmJEOXY4ZnpmNEI1QWdBQUFnbUFEclMyL1FQUVB3SEFhbzcvNityMWRRTjlFUUNOcy8zM3hmVUNlaUVBV0tXWDdSK0E1d1JBdzJ5VEFOUWlBQmlTNStnQXp3bUFSclc0L1R2K0J4aUhBR2hRaThNZmdMRUlBQmF4L2I4bTNJQ2VDSURHR0NMYmVmNFA4Sm9BQUlCQUFxQWhyVzcvanYvMzQvUUMySXNBWUNnR0tNQXlBcUFSdG44QTlpUUFBQ0NRQUdpQTdiOS9yVjVEZ0VjRUFNUHcvQjlnT1FGd01Kc2pBRWNRQU14eS9BOHdOZ0Z3SU50L09ZNy9BZFlSQUFkcGVmamIvZ0hHSndCZ28xSXg1eFFEMkpNQU9FREwyejhBR1FRQVgvUjQvRzl6QmxoUEFPek05ZzlBQ3dRQWYvUzQvUVB3SGdHd0k5dC9lUzBjLzU5T3Arbno4L1BIb1M4Q1lDVUJBQUNCQk1CT1d0LytIZjhEWkJFQUFCQklBT3pBOWw5SEM4Ly9yM3dPQU9pTkFLaXM5ZUZQRzFxS0dTQ0RBR0Q2K2ZQbkw5c3JRQllCVUZGUDI3OElBTWdpQVBpanB3aG84Y2pjNXdDQW5naUFTbnJhL20vMUZBRUF2RThBOEkwSUFCaWZBS2lnMSszL1Zzc1IwT0x4UDBCdkJBQVB0UndCcmZJNUFLQVhBcUN3RWJiL1d5SUFZRXdDZ0pkRVFGMGVhUUJIRUFBRmpiYjkzMnNoQWd4TGdESUVBQzlkQjcrVGdPVzhUMERyQkVBaDUvUDU2SmV3Q3hFQU1JYS9qbjRCbzdnZVM1L1A1eS9EY1pSSEFyZC9qMnNFN1AxM2Mvd1BVSTRBS094K1FQVWVCSSsyL2FNaUFJQXlCRUJGY3g4S3ZCK29QUTlRRWZDWTl3Wm9uUURZV1k5QjhPdzFHWFFBZlJJQWxTejlTbURMUWJEMHczNTdSRUF2ei85SC95b29NQTRCMEpoblFkRHlZSEVTOEozM0JHaVpBS2lnMWhhNDUrbkE3WGYvbC83enA5TnBPcC9QQnQ1dlMwNVFlam5aQU1ZakFCcHpQelNlRFlkV3ZtRndPOFJxUklBaENWQ2VBQ2hzN2ZhL1p1RGZhK0VyaDNQRDJVa0FRUHNFd002MkRQeFhTZ1hCMHVQL1o1dDVlZ1RjdmpmSjd3UFFMZ0ZRMEpMdi9lOTVsRjN6aEdESnNYeDZCQUMwVEFBVWR1VEFmMlZKRUN6Wi90YzhrOThhQVo3L0E5UWhBQXE1L2pLZ25vYlZxeUNZODg1QVRqa0o4RE1BZ0o3NGJZQ0ZuRTZucm9iL25GZC9oeTNiK09sMGl2a1Z1ZmZ2VTlMZkhlaUhBT0NMUjF0c2lhTjRneENnSFFLQWwwbytoMThUQVo3L0E5UWpBSGlxeGhCMkV2QXZnUU1jU1FEd3gvM3hmODBCTldvRVBIclBSdjM3QXYwU0FNemFZenQ5TmhSdHh3QjFDUUNtYWZxNi9lODVmRWZaakgwRkVPaU5BT0NMSXpidlVTSUFvQ2NDZ0QrT1BIWWZJUUpldlg4ai9CMkJjZmhKZ0RUelV3eXZQekd3aGRjQ01Eb25BRXpUMU03QWJlVjFBSXhPQU5EYzBHM3Q5UUNNU0FCQUlVdkN4ZWNBZ0ZZSUFEaUFuM01BSEUwQXdFYlhEMUVDOUVRQUFFQWdBUUFGckRuT2QvUVB0RUFBQUVDZ2oybWFMa2UvQ0FCZ1gwNEFBQ0NRQUFDQVFBSUFBQUlKQUFBSUpBQUFJSkFBQUlCQUFnQUFBZ2tBQUFna0FBQWdrQUFBZ0VBQ0FBQUNDUUFBQ0NRQUFDQ1FBQUNBUUFJQUFBSUpBQUFJSkFBQUlKQUFBSUJBQWdBQUFna0FBQWdrQUFBZ2tBQUFnRUFDQUFBQ0NRQUFDQ1FBQUNDUUFBQ0FRQUlBQUFJSkFBQUlKQUFBSUpBQUFJQkFBZ0FBQWdrQUFBZ2tBQUFna0FBQWdFQUNBQUFDQ1FBQUNDUUFBQ0NRQUFDQVFBSUFBQUlKQUFBSUpBQUFJSkFBQUlCQUFnQUFBZ2tBQUFna0FBQWdrQUFBZ0VBQ0FBQUNDUUFBQ0NRQUFDQ1FBQUNBUUFJQUFBSUpBQUFJSkFBQUlKQUFBSUJBQWdBQUFna0FBQWdrQUFBZ2tBQUFnRUFDQUFBQ0NRQUFDQ1FBQUNDUUFBQ0FRQUlBQUFJSkFBQUlKQUFBSUpBQUFJQkFBZ0FBQWdrQUFBZ2tBQUFna0FBQWdFQUNBQUFDQ1FBQUNDUUFBQ0NRQUFDQVFQOEhOVXZFTU9VbERDNEFBQUFBU1VWT1JLNUNZSUk9IiwgInNpemVzIjogIjUxMng1MTIiLCAidHlwZSI6ICJpbWFnZS9wbmcifV19">
+<style>
+:root{
+  --bg:#000000;
+  --white:#ffffff;
+  --yellow:#ffd400;
+  --orange:#ff8c1a;
+  --dim:#6b6b6b;
+  --panel:#111214;
+  --line:#2a2c30;
+  --accent:#3b82f6;
+  --danger:#e5484d;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+html,body{
+  margin:0; padding:0; width:100%; height:100%;
+  background:var(--bg); color:var(--white);
+  font-family:"Hiragino Sans","Yu Gothic",system-ui,-apple-system,sans-serif;
+  overscroll-behavior:none;
+  overflow:hidden;
+}
+#app{ position:fixed; inset:0; }
+
+/* ---------- 横固定（縦持ち時は回転させて横画面として扱う） ---------- */
+.rotor{
+  position:fixed;
+  top:0; left:0;
+  width:100vw; height:100vh;
+  transform-origin:center center;
+}
+@media (orientation:portrait){
+  .rotor{
+    width:100vh;
+    height:100vw;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%) rotate(90deg);
+  }
+}
+
+/* ---------- スコアボード画面 ---------- */
+#board{
+  position:relative;
+  width:100%; height:100%;
+  display:none;
+  flex-direction:column;
+  background:var(--bg);
+}
+#board.active{ display:flex; }
+
+.board-main{
+  flex:1;
+  display:flex;
+  min-height:0;
+}
+.side{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  padding:2vh 1vw;
+  min-width:0;
+  border-right:1px solid #1a1a1a;
+}
+.side:last-child{ border-right:none; }
+.side.serving{ background:rgba(255,212,0,0.05); }
+
+.score-num{
+  font-size:min(28vw, 42vh);
+  font-weight:800;
+  line-height:1;
+  color:var(--white);
+  letter-spacing:-0.02em;
+  font-variant-numeric:tabular-nums;
+}
+.side.serving .score-num{ color:var(--yellow); }
+
+.court-slots{
+  display:flex;
+  gap:3vw;
+  margin-top:1.2vh;
+  width:100%;
+  justify-content:center;
+}
+.slot{
+  flex:0 1 auto;
+  min-width:0;
+  max-width:46%;
+  text-align:center;
+  font-size:min(4.2vw, 4.6vh);
+  font-weight:700;
+  color:var(--white);
+  padding:0.4vh 0.8vw;
+  border-radius:8px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  transition:opacity .15s;
+}
+.slot.empty{ visibility:hidden; }
+.slot.server{ color:var(--orange); }
+.slot.active-box{ box-shadow:inset 0 -3px 0 currentColor; }
+
+.mid-divider{
+  width:2px;
+  align-self:stretch;
+  background:linear-gradient(to bottom, transparent, #333 15%, #333 85%, transparent);
+}
+
+.game-target-badge{
+  position:absolute;
+  top:1.2vh;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:min(2.6vw,2.4vh);
+  color:var(--dim);
+  letter-spacing:0.05em;
+}
+
+.set-status{
+  position:absolute;
+  top:1.2vh;
+  right:1.5vw;
+  font-size:min(2.4vw,2.2vh);
+  color:var(--dim);
+}
+
+/* ---------- 下部ボタン行 ---------- */
+.controls{
+  display:flex;
+  height:9vh;
+  min-height:52px;
+  border-top:1px solid #1c1c1c;
+  background:#050505;
+}
+.controls button{
+  flex:1;
+  background:transparent;
+  color:var(--white);
+  border:none;
+  border-right:1px solid #1c1c1c;
+  font-size:min(3.4vw,2.4vh);
+  font-weight:600;
+  letter-spacing:0.05em;
+}
+.controls button:last-child{ border-right:none; }
+.controls button:active{ background:#1a1a1a; }
+.controls button.undo-btn{ color:#bbb; }
+.controls button.change-btn{ color:var(--accent); }
+.controls button.stop-btn{ color:var(--danger); }
+.controls button:disabled{ color:#3a3a3a; }
+
+/* ---------- 設定画面 ---------- */
+#settings{
+  position:relative;
+  width:100%; height:100%;
+  overflow-y:auto;
+  background:var(--bg);
+  padding:3vh 4vw 4vh;
+  display:none;
+}
+#settings.active{ display:block; }
+.settings-title{
+  font-size:min(5vw,4vh);
+  font-weight:800;
+  margin:0 0 2vh;
+  display:flex;
+  align-items:center;
+  gap:0.6em;
+}
+.settings-title .shuttle{ font-size:1.1em; }
+
+.field{
+  margin-bottom:2.2vh;
+}
+.field label{
+  display:block;
+  font-size:min(2.6vw,2.1vh);
+  color:#9a9a9a;
+  margin-bottom:0.8vh;
+  letter-spacing:0.03em;
+}
+.seg{
+  display:flex;
+  gap:1vw;
+  flex-wrap:wrap;
+}
+.seg button{
+  flex:1;
+  min-width:80px;
+  padding:1.4vh 0;
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--white);
+  border-radius:10px;
+  font-size:min(2.8vw,2.2vh);
+  font-weight:600;
+}
+.seg button.on{
+  background:var(--yellow);
+  color:#000;
+  border-color:var(--yellow);
+}
+input[type="text"], input[type="number"]{
+  width:100%;
+  padding:1.4vh 1vw;
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--white);
+  border-radius:10px;
+  font-size:min(2.8vw,2.2vh);
+}
+select{
+  width:100%;
+  padding:1.4vh 1vw;
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--white);
+  border-radius:10px;
+  font-size:min(2.8vw,2.2vh);
+}
+.two-col{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1.5vw;
+}
+.team-block{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:1.5vh 1vw;
+  margin-bottom:1.2vh;
+}
+.team-block .team-label{
+  font-size:min(2.4vw,2vh);
+  color:var(--dim);
+  margin-bottom:0.8vh;
+}
+.team-block input{ margin-bottom:0.8vh; }
+.team-block input:last-child{ margin-bottom:0; }
+
+.deuce-max-row{ display:none; margin-top:1.2vh; }
+.deuce-max-row.show{ display:block; }
+.custom-points-row{ display:none; margin-top:1.2vh; }
+.custom-points-row.show{ display:block; }
+
+.start-btn{
+  width:100%;
+  padding:2vh 0;
+  background:var(--yellow);
+  color:#000;
+  border:none;
+  border-radius:14px;
+  font-size:min(3.6vw,2.8vh);
+  font-weight:800;
+  margin-top:2vh;
+}
+.start-btn:disabled{
+  background:#333;
+  color:#777;
+}
+.hint{
+  font-size:min(2.2vw,1.8vh);
+  color:#666;
+  margin-top:0.6vh;
+}
+.err{
+  color:var(--danger);
+  font-size:min(2.4vw,2vh);
+  margin-top:1vh;
+  min-height:1em;
+}
+
+.icon-shuttle{ display:inline-block; }
+
+.past-matches{
+  margin-top:3vh;
+  border-top:1px solid var(--line);
+  padding-top:2vh;
+}
+.past-matches h3{
+  font-size:min(3vw,2.4vh);
+  color:#9a9a9a;
+  margin:0 0 1.2vh;
+  font-weight:600;
+}
+.past-row{
+  display:flex;
+  justify-content:space-between;
+  padding:1.2vh 0;
+  border-bottom:1px solid #1c1c1c;
+  font-size:min(2.6vw,2.1vh);
+  color:#ccc;
+}
+.past-row button{
+  background:none;
+  border:none;
+  color:var(--accent);
+  font-size:inherit;
+}
+
+/* 設定を開く小ボタン（試合中） */
+.gear-btn{
+  position:absolute;
+  top:1vh; left:1vw;
+  width:8vw; height:8vw;
+  max-width:44px; max-height:44px;
+  min-width:32px; min-height:32px;
+  background:rgba(255,255,255,0.06);
+  border:none;
+  border-radius:50%;
+  color:#888;
+  font-size:min(3vw,2.4vh);
+  z-index:5;
+}
+
+/* ---------- スコアシート（モーダル） ---------- */
+#sheetOverlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.92);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:50;
+  padding:2vh 2vw;
+}
+#sheetOverlay.active{ display:flex; }
+.sheet{
+  background:#0c0c0c;
+  border:1px solid #262626;
+  border-radius:16px;
+  width:100%;
+  max-width:640px;
+  max-height:94vh;
+  overflow-y:auto;
+  padding:3vh 3vw;
+  color:#fff;
+}
+.sheet h2{
+  margin:0 0 0.4vh;
+  font-size:min(4vw,3vh);
+}
+.sheet .sub{
+  color:#999;
+  font-size:min(2.4vw,1.9vh);
+  margin-bottom:2vh;
+}
+.sheet-result{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#141414;
+  border-radius:12px;
+  padding:2vh 2vw;
+  margin-bottom:2vh;
+}
+.sheet-result .name{ font-size:min(3vw,2.2vh); }
+.sheet-result .name.win{ color:var(--yellow); font-weight:800; }
+.sheet-result .final-score{
+  font-size:min(6vw,4.4vh);
+  font-weight:800;
+}
+table.sheet-log{
+  width:100%;
+  border-collapse:collapse;
+  font-size:min(2.4vw,1.8vh);
+  margin-bottom:2vh;
+}
+table.sheet-log th, table.sheet-log td{
+  border-bottom:1px solid #222;
+  padding:0.7vh 0.4vw;
+  text-align:center;
+}
+table.sheet-log th{ color:#888; font-weight:600; }
+.sheet-btns{
+  display:flex;
+  gap:2vw;
+}
+.sheet-btns button{
+  flex:1;
+  padding:1.6vh 0;
+  border:none;
+  border-radius:10px;
+  font-size:min(3vw,2.2vh);
+  font-weight:700;
+}
+.sheet-btns .print-btn{ background:#2a2a2a; color:#fff; }
+.sheet-btns .new-btn{ background:var(--yellow); color:#000; }
+
+@media print{
+  body *{ visibility:hidden; }
+  #sheetOverlay, #sheetOverlay *{ visibility:visible; }
+  #sheetOverlay{ position:absolute; inset:0; background:#fff; color:#000; }
+  .sheet{ background:#fff; color:#000; border:none; max-width:100%; }
+  .sheet-result{ background:#f0f0f0; }
+  .sheet-result .name.win{ color:#b8860b; }
+  .sheet-btns{ display:none; }
+  table.sheet-log th{ color:#333; }
+}
+
+.confirm-overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.7);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:60;
+}
+.confirm-overlay.active{ display:flex; }
+.confirm-box{
+  background:#141414;
+  border:1px solid #2a2a2a;
+  border-radius:14px;
+  padding:3vh 4vw;
+  max-width:80vw;
+  text-align:center;
+}
+.confirm-box p{ font-size:min(3.2vw,2.4vh); margin:0 0 2vh; }
+.confirm-box .row{ display:flex; gap:2vw; }
+.confirm-box button{
+  flex:1;
+  padding:1.4vh 0;
+  border:none;
+  border-radius:10px;
+  font-size:min(2.8vw,2.2vh);
+  font-weight:700;
+}
+.confirm-box .cancel{ background:#2a2a2a; color:#fff; }
+.confirm-box .ok{ background:var(--danger); color:#fff; }
+</style>
+</head>
+<body>
+<div id="app">
+<div class="rotor">
+
+  <!-- 設定画面 -->
+  <div id="settings">
+    <h1 class="settings-title"><span class="shuttle">🏸</span>バドる - 試合設定</h1>
+
+    <div class="field">
+      <label>種目</label>
+      <div class="seg" id="segType">
+        <button data-v="singles" class="on">シングルス</button>
+        <button data-v="doubles">ダブルス</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>ゲームポイント</label>
+      <div class="seg" id="segPoints">
+        <button data-v="21" class="on">21点</button>
+        <button data-v="15">15点</button>
+        <button data-v="custom">入力</button>
+      </div>
+      <div class="custom-points-row" id="customPointsRow">
+        <input type="number" id="customPoints" placeholder="目標点数を入力" min="3" max="99">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>セッティング（デュース）</label>
+      <div class="seg" id="segDeuce">
+        <button data-v="on" class="on">あり</button>
+        <button data-v="off">なし</button>
+      </div>
+      <div class="deuce-max-row show" id="deuceMaxRow">
+        <label style="margin-top:0.8vh;">セッティング時の最大点</label>
+        <input type="number" id="deuceMax" min="3" max="99">
+        <div class="hint">例）21点なら30点、15点なら17点が一般的です</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>選手名</label>
+      <div class="two-col">
+        <div class="team-block">
+          <div class="team-label">チームA</div>
+          <input type="text" id="nameA1" placeholder="選手1" value="選手A1">
+          <input type="text" id="nameA2" placeholder="選手2（ダブルス）" value="選手A2">
+        </div>
+        <div class="team-block">
+          <div class="team-label">チームB</div>
+          <input type="text" id="nameB1" placeholder="選手1" value="選手B1">
+          <input type="text" id="nameB2" placeholder="選手2（ダブルス）" value="選手B2">
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>ファーストサーバー</label>
+      <select id="firstServer"></select>
+    </div>
+
+    <div class="field">
+      <label>ファーストレシーバー</label>
+      <select id="firstReceiver"></select>
+    </div>
+
+    <div class="field">
+      <label>コートエンド（画面左に表示する選手・チーム）</label>
+      <select id="leftEndSelect"></select>
+    </div>
+
+    <div class="err" id="settingsErr"></div>
+    <button class="start-btn" id="startBtn">試合開始</button>
+
+    <div class="past-matches" id="pastMatchesWrap" style="display:none;">
+      <h3>過去の試合</h3>
+      <div id="pastMatchesList"></div>
+    </div>
+  </div>
+
+  <!-- スコアボード画面 -->
+  <div id="board">
+    <button class="gear-btn" id="gearBtn">⚙</button>
+    <div class="board-main">
+      <div class="side" id="sideLeft">
+        <div class="score-num" id="scoreLeftNum">0</div>
+        <div class="court-slots" id="slotsLeft"></div>
+      </div>
+      <div class="mid-divider"></div>
+      <div class="side" id="sideRight">
+        <div class="score-num" id="scoreRightNum">0</div>
+        <div class="court-slots" id="slotsRight"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="undo-btn" id="undoBtn">元に戻す</button>
+      <button class="change-btn" id="changeEndBtn">チェンジエンド</button>
+      <button class="stop-btn" id="stopBtn">中止</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- スコアシート -->
+<div id="sheetOverlay">
+  <div class="sheet" id="sheetContent"></div>
+</div>
+
+<!-- 確認ダイアログ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <p id="confirmMsg">試合を中止しますか？</p>
+    <div class="row">
+      <button class="cancel" id="confirmCancel">キャンセル</button>
+      <button class="ok" id="confirmOk">中止する</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+/* ============================================================
+   Firebase 設定
+   life--log プロジェクトなど既存のFirebaseプロジェクトのconfigを
+   ここに設定してください。データは badoru/ 以下に保存されます。
+============================================================ */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let dbReady = false;
+let matchRef = null;
+let matchesRef = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  matchRef = db.ref('badoru/currentMatch');
+  matchesRef = db.ref('badoru/matches');
+  dbReady = true;
+}catch(e){
+  console.warn('Firebase未設定のためローカルのみで動作します', e);
+}
+
+/* ============================================================
+   状態管理
+============================================================ */
+const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
+
+let settings = null;
+let state = null;      // 進行中の試合状態
+let historyStack = [];
+let suppressRemote = false;
+let remoteApplyTimer = null;
+
+function otherTeam(t){ return t === 'A' ? 'B' : 'A'; }
+
+function partnerOf(team, playerName){
+  const arr = settings.players[team];
+  if(arr.length < 2) return null;
+  return arr[0] === playerName ? arr[1] : arr[0];
+}
+
+function teamOf(playerName){
+  if(settings.players.A.includes(playerName)) return 'A';
+  if(settings.players.B.includes(playerName)) return 'B';
+  return null;
+}
+
+/* ---------- 設定画面 ---------- */
+const segType = document.getElementById('segType');
+const segPoints = document.getElementById('segPoints');
+const segDeuce = document.getElementById('segDeuce');
+const customPointsRow = document.getElementById('customPointsRow');
+const customPoints = document.getElementById('customPoints');
+const deuceMaxRow = document.getElementById('deuceMaxRow');
+const deuceMax = document.getElementById('deuceMax');
+const nameA2 = document.getElementById('nameA2');
+const nameB2 = document.getElementById('nameB2');
+const firstServerSel = document.getElementById('firstServer');
+const firstReceiverSel = document.getElementById('firstReceiver');
+const leftEndSelect = document.getElementById('leftEndSelect');
+const settingsErr = document.getElementById('settingsErr');
+
+let curType = 'singles';
+let curPoints = 21;
+let curDeuce = true;
+
+function setSeg(container, value, onchange){
+  [...container.children].forEach(btn=>{
+    btn.classList.toggle('on', btn.dataset.v === String(value));
+  });
+}
+
+segType.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  curType = btn.dataset.v;
+  setSeg(segType, curType);
+  const doubles = curType === 'doubles';
+  nameA2.style.display = doubles ? 'block' : 'none';
+  nameB2.style.display = doubles ? 'block' : 'none';
+  refreshPlayerSelects();
+});
+
+segPoints.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  setSeg(segPoints, btn.dataset.v);
+  customPointsRow.classList.toggle('show', btn.dataset.v === 'custom');
+  if(btn.dataset.v === 'custom'){
+    curPoints = 'custom';
+  }else{
+    curPoints = parseInt(btn.dataset.v, 10);
+    deuceMax.value = curPoints === 15 ? 17 : 30;
+  }
+});
+
+segDeuce.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  curDeuce = btn.dataset.v === 'on';
+  setSeg(segDeuce, btn.dataset.v);
+  deuceMaxRow.classList.toggle('show', curDeuce);
+});
+
+deuceMax.value = 30;
+
+function currentPlayers(){
+  const a1 = document.getElementById('nameA1').value.trim() || '選手A1';
+  const a2 = document.getElementById('nameA2').value.trim() || '選手A2';
+  const b1 = document.getElementById('nameB1').value.trim() || '選手B1';
+  const b2 = document.getElementById('nameB2').value.trim() || '選手B2';
+  if(curType === 'singles'){
+    return { A:[a1], B:[b1] };
+  }
+  return { A:[a1,a2], B:[b1,b2] };
+}
+
+function refreshPlayerSelects(){
+  const players = currentPlayers();
+  const all = [...players.A.map(n=>({n,t:'A'})), ...players.B.map(n=>({n,t:'B'}))];
+
+  firstServerSel.innerHTML = all.map(p=>`<option value="${p.n}">${p.n}（チーム${p.t}）</option>`).join('');
+
+  updateReceiverOptions();
+  updateLeftEndOptions();
+}
+
+function updateReceiverOptions(){
+  const players = currentPlayers();
+  const serverName = firstServerSel.value;
+  const serverTeam = players.A.includes(serverName) ? 'A' : 'B';
+  const recvTeam = serverTeam === 'A' ? 'B' : 'A';
+  const opts = players[recvTeam];
+  firstReceiverSel.innerHTML = opts.map(n=>`<option value="${n}">${n}（チーム${recvTeam}）</option>`).join('');
+}
+
+function updateLeftEndOptions(){
+  const players = currentPlayers();
+  leftEndSelect.innerHTML = [
+    `<option value="A">チームA（${players.A.join('・')}）</option>`,
+    `<option value="B">チームB（${players.B.join('・')}）</option>`
+  ].join('');
+}
+
+firstServerSel.addEventListener('change', updateReceiverOptions);
+['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', refreshPlayerSelects);
+});
+
+refreshPlayerSelects();
+
+/* ---------- 試合開始 ---------- */
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  settingsErr.textContent = '';
+  const players = currentPlayers();
+
+  let target = curPoints;
+  if(target === 'custom'){
+    target = parseInt(customPoints.value, 10);
+    if(!target || target < 3){
+      settingsErr.textContent = '得点数を正しく入力してください';
+      return;
+    }
+  }
+
+  let dMax = curDeuce ? parseInt(deuceMax.value, 10) : target;
+  if(curDeuce && (!dMax || dMax <= target)){
+    settingsErr.textContent = 'セッティング時の最大点は目標点より大きい値を入力してください';
+    return;
+  }
+
+  const firstServer = firstServerSel.value;
+  const firstReceiver = firstReceiverSel.value;
+  const leftEnd = leftEndSelect.value;
+
+  settings = {
+    matchType: curType,
+    pointsTarget: target,
+    deuce: curDeuce,
+    deuceMax: dMax,
+    players,
+    firstServer,
+    firstReceiver,
+    initialLeftTeam: leftEnd
+  };
+
+  startNewMatch();
+});
+
+/* ---------- 試合状態の初期化 ---------- */
+function startNewMatch(){
+  const serverTeam = teamOf(settings.firstServer);
+  const receiverTeam = otherTeam(serverTeam);
+
+  const positions = { A:{right:null,left:null}, B:{right:null,left:null} };
+
+  if(settings.matchType === 'doubles'){
+    const serverPartner = partnerOf(serverTeam, settings.firstServer);
+    positions[serverTeam] = { right: settings.firstServer, left: serverPartner };
+    const receiverPartner = partnerOf(receiverTeam, settings.firstReceiver);
+    positions[receiverTeam] = { right: settings.firstReceiver, left: receiverPartner };
+  }else{
+    positions[serverTeam] = { right: settings.firstServer, left: settings.firstServer };
+    positions[receiverTeam] = { right: settings.firstReceiver, left: settings.firstReceiver };
+  }
+
+  state = {
+    rev: 1,
+    score: { A:0, B:0 },
+    serverTeam,
+    positions,
+    leftTeam: settings.initialLeftTeam,
+    pointLog: [],
+    status: 'ongoing',
+    winner: null,
+    startedAt: Date.now(),
+    settings
+  };
+  historyStack = [];
+
+  showBoard();
+  render();
+  pushRemote();
+}
+
+/* ---------- 得点ロジック ---------- */
+function snapshotState(){
+  return JSON.parse(JSON.stringify(state));
+}
+
+function currentServerPlayer(){
+  if(settings.matchType === 'singles'){
+    return settings.players[state.serverTeam][0];
+  }
+  const box = (state.score[state.serverTeam] % 2 === 0) ? 'right' : 'left';
+  return state.positions[state.serverTeam][box];
+}
+
+function serverBoxOf(team){
+  return (state.score[team] % 2 === 0) ? 'right' : 'left';
+}
+
+function checkWinner(){
+  const { A, B } = state.score;
+  const target = settings.pointsTarget;
+  const hi = Math.max(A,B), diff = Math.abs(A-B);
+  if(settings.deuce){
+    if(hi >= settings.deuceMax) return A > B ? 'A' : 'B';
+    if(hi >= target && diff >= 2) return A > B ? 'A' : 'B';
+    return null;
+  }else{
+    if(hi >= target) return A > B ? 'A' : 'B';
+    return null;
+  }
+}
+
+function awardPoint(winTeam){
+  if(!state || state.status !== 'ongoing') return;
+  historyStack.push(snapshotState());
+
+  const prevServerTeam = state.serverTeam;
+  const serverPlayerBefore = currentServerPlayer();
+
+  if(winTeam === prevServerTeam){
+    state.score[winTeam] += 1;
+    if(settings.matchType === 'doubles'){
+      const p = state.positions[winTeam];
+      const tmp = p.right; p.right = p.left; p.left = tmp;
+    }
+  }else{
+    state.serverTeam = winTeam;
+    state.score[winTeam] += 1;
+    // 受け取り側だったチーム(winTeam)のポジションはそのまま。サーバーは新しいスコアの奇偶で決まる
+  }
+
+  const newServerPlayer = currentServerPlayer();
+
+  state.pointLog.push({
+    seq: state.pointLog.length + 1,
+    scoreA: state.score.A,
+    scoreB: state.score.B,
+    winTeam,
+    serverTeamBefore: prevServerTeam,
+    serverPlayerBefore,
+    serverTeamAfter: state.serverTeam,
+    serverPlayerAfter: newServerPlayer
+  });
+
+  const w = checkWinner();
+  if(w){
+    state.status = 'finished';
+    state.winner = w;
+    state.finishedAt = Date.now();
+  }
+
+  state.rev += 1;
+  render();
+  pushRemote();
+
+  if(w){
+    setTimeout(()=>openScoreSheet(), 250);
+  }
+}
+
+function undoLast(){
+  if(historyStack.length === 0) return;
+  state = historyStack.pop();
+  state.rev += 1;
+  render();
+  pushRemote();
+}
+
+function changeEnd(){
+  if(!state) return;
+  historyStack.push(snapshotState());
+  state.leftTeam = otherTeam(state.leftTeam);
+  state.rev += 1;
+  render();
+  pushRemote();
+}
+
+function abortMatch(){
+  if(!state) return;
+  state.status = 'aborted';
+  state.finishedAt = Date.now();
+  state.rev += 1;
+  render();
+  pushRemote();
+  openScoreSheet();
+}
+
+/* ---------- 描画 ---------- */
+const boardEl = document.getElementById('board');
+const settingsEl = document.getElementById('settings');
+const sideLeftEl = document.getElementById('sideLeft');
+const sideRightEl = document.getElementById('sideRight');
+const scoreLeftNum = document.getElementById('scoreLeftNum');
+const scoreRightNum = document.getElementById('scoreRightNum');
+const slotsLeft = document.getElementById('slotsLeft');
+const slotsRight = document.getElementById('slotsRight');
+const undoBtn = document.getElementById('undoBtn');
+
+function showBoard(){
+  settingsEl.classList.remove('active');
+  boardEl.classList.add('active');
+}
+function showSettings(){
+  boardEl.classList.remove('active');
+  settingsEl.classList.add('active');
+  renderPastMatches();
+}
+
+function renderSlots(container, team){
+  container.innerHTML = '';
+  const serverTeam = state.serverTeam;
+  const serverPlayer = currentServerPlayer();
+
+  if(settings.matchType === 'singles'){
+    // シングルスは両者ともサーバー側の得点の奇偶で立ち位置（右/左コート）が決まる
+    const name = settings.players[team][0];
+    const refBox = serverBoxOf(serverTeam);
+    const isServer = team === serverTeam;
+    const slot = document.createElement('div');
+    slot.className = 'slot' + (isServer ? ' server' : '');
+    slot.textContent = name;
+    slot.style.marginLeft = refBox === 'right' ? 'auto' : '0';
+    slot.style.marginRight = refBox === 'left' ? 'auto' : '0';
+    container.appendChild(slot);
+    return;
+  }
+
+  const pos = state.positions[team];
+  ['right','left'].forEach(box=>{
+    const name = pos[box];
+    const slot = document.createElement('div');
+    const isServer = (team === serverTeam) && (name === serverPlayer);
+    slot.className = 'slot' + (isServer ? ' server' : '') + (name ? '' : ' empty');
+    slot.textContent = name || '';
+    container.appendChild(slot);
+  });
+}
+
+function render(){
+  if(!state) return;
+  const leftTeam = state.leftTeam;
+  const rightTeam = otherTeam(leftTeam);
+
+  scoreLeftNum.textContent = state.score[leftTeam];
+  scoreRightNum.textContent = state.score[rightTeam];
+
+  sideLeftEl.classList.toggle('serving', state.serverTeam === leftTeam);
+  sideRightEl.classList.toggle('serving', state.serverTeam === rightTeam);
+
+  renderSlots(slotsLeft, leftTeam);
+  renderSlots(slotsRight, rightTeam);
+
+  undoBtn.disabled = historyStack.length === 0;
+}
+
+/* ---------- タップ操作 ---------- */
+sideLeftEl.addEventListener('click', ()=>{
+  if(!state || state.status !== 'ongoing') return;
+  awardPoint(state.leftTeam);
+});
+sideRightEl.addEventListener('click', ()=>{
+  if(!state || state.status !== 'ongoing') return;
+  awardPoint(otherTeam(state.leftTeam));
+});
+
+document.getElementById('undoBtn').addEventListener('click', undoLast);
+document.getElementById('changeEndBtn').addEventListener('click', changeEnd);
+
+document.getElementById('gearBtn').addEventListener('click', ()=>{
+  if(state && state.status === 'ongoing'){
+    openConfirm('設定画面に戻りますか？（現在の試合は中止されます）', ()=>{
+      abortMatch();
+    });
+  }else{
+    showSettings();
+  }
+});
+
+document.getElementById('stopBtn').addEventListener('click', ()=>{
+  openConfirm('試合を中止しますか？', ()=>{
+    abortMatch();
+  });
+});
+
+/* ---------- 確認ダイアログ ---------- */
+const confirmOverlay = document.getElementById('confirmOverlay');
+const confirmMsg = document.getElementById('confirmMsg');
+let confirmCb = null;
+function openConfirm(msg, cb){
+  confirmMsg.textContent = msg;
+  confirmCb = cb;
+  confirmOverlay.classList.add('active');
+}
+document.getElementById('confirmCancel').addEventListener('click', ()=>{
+  confirmOverlay.classList.remove('active');
+  confirmCb = null;
+});
+document.getElementById('confirmOk').addEventListener('click', ()=>{
+  confirmOverlay.classList.remove('active');
+  if(confirmCb) confirmCb();
+  confirmCb = null;
+});
+
+/* ---------- スコアシート ---------- */
+const sheetOverlay = document.getElementById('sheetOverlay');
+const sheetContent = document.getElementById('sheetContent');
+
+function fmtTeamName(team){
+  return settings.players[team].join(' / ');
+}
+
+function openScoreSheet(){
+  const s = state;
+  const dt = new Date(s.finishedAt || Date.now());
+  const dtStr = dt.toLocaleString('ja-JP');
+  const durMin = s.startedAt ? Math.max(1, Math.round((dt - s.startedAt) / 60000)) : null;
+
+  const winnerName = s.winner ? fmtTeamName(s.winner) : null;
+  const statusLabel = s.status === 'aborted' ? '（試合中止）' : '';
+
+  const rows = s.pointLog.map(p=>{
+    const serverMark = p.serverTeamAfter === 'A' ? `● ${p.serverPlayerAfter}` : `${p.serverPlayerAfter} ●`;
+    return `<tr>
+      <td>${p.seq}</td>
+      <td>${p.scoreA}</td>
+      <td>${p.scoreB}</td>
+      <td>${serverMark}</td>
+    </tr>`;
+  }).join('');
+
+  sheetContent.innerHTML = `
+    <h2>スコアシート${statusLabel}</h2>
+    <div class="sub">${dtStr}${durMin ? '　所要時間: 約' + durMin + '分' : ''}　/　${settings.matchType === 'doubles' ? 'ダブルス' : 'シングルス'}　/　${settings.pointsTarget}点${settings.deuce ? '（セッティングあり・最大' + settings.deuceMax + '点）' : '（セッティングなし）'}</div>
+    <div class="sheet-result">
+      <div class="name ${s.winner==='A' ? 'win':''}">${fmtTeamName('A')}</div>
+      <div class="final-score">${s.score.A} - ${s.score.B}</div>
+      <div class="name ${s.winner==='B' ? 'win':''}">${fmtTeamName('B')}</div>
+    </div>
+    ${winnerName ? `<div class="sub">勝者：${winnerName}</div>` : ''}
+    <table class="sheet-log">
+      <thead><tr><th>#</th><th>${fmtTeamName('A')}</th><th>${fmtTeamName('B')}</th><th>サーブ</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="sheet-btns">
+      <button class="print-btn" id="printBtn">印刷 / PDF保存</button>
+      <button class="new-btn" id="newMatchBtn">新しい試合へ</button>
+    </div>
+  `;
+
+  document.getElementById('printBtn').addEventListener('click', ()=>window.print());
+  document.getElementById('newMatchBtn').addEventListener('click', ()=>{
+    archiveMatch();
+    sheetOverlay.classList.remove('active');
+    showSettings();
+  });
+
+  sheetOverlay.classList.add('active');
+}
+
+function archiveMatch(){
+  if(!dbReady || !matchesRef || !state) return;
+  try{
+    matchesRef.push({
+      finishedAt: state.finishedAt || Date.now(),
+      settings,
+      score: state.score,
+      winner: state.winner,
+      status: state.status,
+      pointLog: state.pointLog
+    });
+  }catch(e){ console.warn('archive失敗', e); }
+}
+
+/* ---------- 過去の試合一覧（設定画面） ---------- */
+function renderPastMatches(){
+  const wrap = document.getElementById('pastMatchesWrap');
+  const list = document.getElementById('pastMatchesList');
+  if(!dbReady || !matchesRef){ wrap.style.display = 'none'; return; }
+
+  matchesRef.orderByChild('finishedAt').limitToLast(10).once('value').then(snap=>{
+    const items = [];
+    snap.forEach(child=>{ items.push({ id: child.key, ...child.val() }); });
+    items.reverse();
+    if(items.length === 0){ wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    list.innerHTML = items.map(m=>{
+      const d = new Date(m.finishedAt);
+      const names = `${m.settings.players.A.join('/')} vs ${m.settings.players.B.join('/')}`;
+      return `<div class="past-row"><span>${d.toLocaleDateString('ja-JP')} ${names} ${m.score.A}-${m.score.B}</span></div>`;
+    }).join('');
+  }).catch(()=>{ wrap.style.display = 'none'; });
+}
+
+/* ---------- Firebase 同期 ---------- */
+function pushRemote(){
+  if(!dbReady || !matchRef) return;
+  suppressRemote = true;
+  matchRef.set({ deviceId: DEVICE_ID, settings, state }).catch(e=>console.warn('sync失敗', e));
+  clearTimeout(remoteApplyTimer);
+  remoteApplyTimer = setTimeout(()=>{ suppressRemote = false; }, 800);
+}
+
+if(dbReady){
+  matchRef.on('value', snap=>{
+    const val = snap.val();
+    if(!val || !val.state) return;
+    if(val.deviceId === DEVICE_ID) return;
+    if(suppressRemote) return;
+    if(state && val.state.rev <= state.rev) return;
+
+    settings = val.settings;
+    state = val.state;
+    historyStack = [];
+    showBoard();
+    render();
+  });
+}
+
+/* ---------- 画面向き変更時の再描画 ---------- */
+window.addEventListener('resize', ()=>{ if(state) render(); });
+</script>
+</body>
+</html>
