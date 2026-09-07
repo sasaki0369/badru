@@ -70,20 +70,30 @@ html,body{
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:center;
+  justify-content:flex-start;
   position:relative;
-  padding:2vh 1vw;
+  padding:1vh 0.6vw;
   min-width:0;
+  min-height:0;
   border-right:1px solid #1a1a1a;
 }
 .side:last-child{ border-right:none; }
 .side.serving{ background:rgba(255,212,0,0.05); }
 
+.score-zone{
+  flex:1;
+  min-height:0;
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+
 .score-num{
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:1.4vw;
 }
 
 /* ---------- フリップボード風スコアカード ---------- */
@@ -121,7 +131,7 @@ html,body{
 .flip-card .ring.l{ left:14%; }
 .flip-card .ring.r{ right:14%; }
 .flip-card .digit{
-  font-size:68%;
+  font-size:0.68em;
   font-weight:900;
   line-height:1;
   color:var(--white);
@@ -136,9 +146,10 @@ html,body{
 .flip-card:nth-child(2){ transform:rotate(1.2deg); }
 
 .court-slots{
+  flex:0 0 auto;
   display:flex;
   gap:3vw;
-  margin-top:1.2vh;
+  margin-top:0.6vh;
   width:100%;
   justify-content:center;
 }
@@ -574,12 +585,12 @@ table.sheet-log th{ color:#888; font-weight:600; }
     <button class="gear-btn" id="gearBtn">⚙</button>
     <div class="board-main">
       <div class="side" id="sideLeft">
-        <div class="score-num" id="scoreLeftNum">0</div>
+        <div class="score-zone"><div class="score-num" id="scoreLeftNum"></div></div>
         <div class="court-slots" id="slotsLeft"></div>
       </div>
       <div class="mid-divider"></div>
       <div class="side" id="sideRight">
-        <div class="score-num" id="scoreRightNum">0</div>
+        <div class="score-zone"><div class="score-num" id="scoreRightNum"></div></div>
         <div class="court-slots" id="slotsRight"></div>
       </div>
     </div>
@@ -998,15 +1009,50 @@ function renderSlots(container, team){
   });
 }
 
-function renderScoreCards(container, score){
+function renderScoreCards(container, score, cardStyle){
   container.innerHTML = '';
   const digits = String(score).split('');
   digits.forEach(ch=>{
     const card = document.createElement('div');
     card.className = 'flip-card';
+    if(cardStyle){
+      card.style.height = cardStyle.height;
+      card.style.width = cardStyle.width;
+      card.style.fontSize = cardStyle.fontSize;
+    }
     card.innerHTML = '<span class="ring l"></span><span class="ring r"></span><span class="digit">' + ch + '</span>';
     container.appendChild(card);
   });
+}
+
+function computeCardStyle(leftDigits, rightDigits){
+  const zoneL = document.querySelector('#sideLeft .score-zone');
+  const zoneR = document.querySelector('#sideRight .score-zone');
+  if(!zoneL || !zoneR) return null;
+
+  const minW = Math.min(zoneL.clientWidth, zoneR.clientWidth);
+  const minH = Math.min(zoneL.clientHeight, zoneR.clientHeight);
+  if(minW <= 0 || minH <= 0) return null;
+
+  const maxDigits = Math.max(1, leftDigits, rightDigits);
+  const ASPECT = 0.68;   // width / height
+  const GAP_RATIO = 0.09; // 桁間の隙間 = 高さ * この比率
+
+  // maxDigits枚のカード + 隙間が横幅に収まる高さの上限
+  const widthPerUnitHeight = (maxDigits * ASPECT) + ((maxDigits - 1) * GAP_RATIO);
+  let h = minW / widthPerUnitHeight;
+  h = Math.min(h, minH);
+  h = Math.max(h, 24);
+
+  const w = h * ASPECT;
+  const gap = h * GAP_RATIO;
+
+  return {
+    height: h.toFixed(1) + 'px',
+    width: w.toFixed(1) + 'px',
+    fontSize: h.toFixed(1) + 'px',
+    gap: gap.toFixed(1) + 'px'
+  };
 }
 
 function render(){
@@ -1014,8 +1060,14 @@ function render(){
   const leftTeam = state.leftTeam;
   const rightTeam = otherTeam(leftTeam);
 
-  renderScoreCards(scoreLeftNum, state.score[leftTeam]);
-  renderScoreCards(scoreRightNum, state.score[rightTeam]);
+  const leftScoreStr = String(state.score[leftTeam]);
+  const rightScoreStr = String(state.score[rightTeam]);
+  const cardStyle = computeCardStyle(leftScoreStr.length, rightScoreStr.length);
+
+  scoreLeftNum.style.gap = cardStyle ? cardStyle.gap : '';
+  scoreRightNum.style.gap = cardStyle ? cardStyle.gap : '';
+  renderScoreCards(scoreLeftNum, state.score[leftTeam], cardStyle);
+  renderScoreCards(scoreRightNum, state.score[rightTeam], cardStyle);
 
   sideLeftEl.classList.toggle('serving', state.serverTeam === leftTeam);
   sideRightEl.classList.toggle('serving', state.serverTeam === rightTeam);
@@ -1191,6 +1243,7 @@ if(dbReady){
 
 /* ---------- 画面向き変更時の再描画 ---------- */
 window.addEventListener('resize', ()=>{ if(state) render(); });
+window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ if(state) render(); }, 200); });
 
 /* ---------- 初期表示 ---------- */
 showSettings();
