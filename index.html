@@ -442,6 +442,78 @@ table.sheet-log th, table.sheet-log td{
   text-align:center;
 }
 table.sheet-log th{ color:#888; font-weight:600; }
+
+.info-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0.8vh 3vw;
+  background:#141414;
+  border-radius:12px;
+  padding:1.6vh 2vw;
+  margin-bottom:2vh;
+}
+.info-cell{
+  display:flex;
+  justify-content:space-between;
+  font-size:min(2.6vw,1.9vh);
+  border-bottom:1px dashed #2a2a2a;
+  padding-bottom:0.4vh;
+}
+.info-label{ color:#888; }
+.info-value{ color:#fff; font-weight:600; }
+
+.game-sheet{
+  border:1px solid #222;
+  border-radius:12px;
+  padding:1.6vh 2vw;
+  margin-bottom:1.6vh;
+}
+.game-title{
+  font-size:min(2.8vw,2vh);
+  font-weight:700;
+  margin-bottom:1vh;
+  color:#eee;
+}
+.game-cols{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:2vw;
+}
+.game-col .col-name{
+  font-size:min(2.4vw,1.8vh);
+  color:#999;
+  margin-bottom:0.6vh;
+}
+.chip-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:0.5vh 0.5vw;
+}
+.chip{
+  display:inline-flex;
+  align-items:baseline;
+  gap:0.2em;
+  background:#1a1a1a;
+  border:1px solid #2c2c2c;
+  border-radius:6px;
+  padding:0.2vh 0.6vw;
+  font-size:min(2.2vw,1.6vh);
+  color:#ddd;
+}
+.chip b{
+  color:var(--yellow);
+  font-size:0.9em;
+}
+
+.sign-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1vh 3vw;
+  margin:2vh 0;
+  font-size:min(2.4vw,1.8vh);
+  color:#ccc;
+}
+
 .sheet-btns{
   display:flex;
   gap:2vw;
@@ -466,6 +538,15 @@ table.sheet-log th{ color:#888; font-weight:600; }
   .sheet-result .name.win{ color:#b8860b; }
   .sheet-btns{ display:none; }
   table.sheet-log th{ color:#333; }
+  .info-grid{ background:#f5f5f5; }
+  .info-label{ color:#555; }
+  .info-value{ color:#000; }
+  .game-sheet{ border-color:#999; }
+  .game-title{ color:#000; }
+  .game-col .col-name{ color:#555; }
+  .chip{ background:#fff; border-color:#999; color:#000; }
+  .chip b{ color:#000; text-decoration:underline; }
+  .sign-row{ color:#000; }
 }
 
 .confirm-overlay{
@@ -513,6 +594,15 @@ table.sheet-log th{ color:#888; font-weight:600; }
         <button data-v="singles" class="on">シングルス</button>
         <button data-v="doubles">ダブルス</button>
       </div>
+    </div>
+
+    <div class="field">
+      <label>試合形式</label>
+      <div class="seg" id="segFormat">
+        <button data-v="single">1ゲームマッチ</button>
+        <button data-v="best3" class="on">3ゲームマッチ</button>
+      </div>
+      <div class="hint">3ゲームマッチは2ゲーム先取で勝利。各ゲーム後にエンドを交代し、最終（3）ゲームは先に目標点の半分に達した側でエンドを交代します。</div>
     </div>
 
     <div class="field">
@@ -571,6 +661,18 @@ table.sheet-log th{ color:#888; font-weight:600; }
       <select id="leftEndSelect"></select>
     </div>
 
+    <div class="field">
+      <label>大会情報（スコアシート用・任意入力）</label>
+      <div class="two-col">
+        <input type="text" id="tournamentName" placeholder="大会名">
+        <input type="text" id="matchNumber" placeholder="試合番号">
+      </div>
+      <div class="two-col" style="margin-top:1vh;">
+        <input type="text" id="venueName" placeholder="場所">
+        <input type="text" id="courtNumber" placeholder="コート番号">
+      </div>
+    </div>
+
     <div class="err" id="settingsErr"></div>
     <button class="start-btn" id="startBtn">試合開始</button>
 
@@ -583,6 +685,8 @@ table.sheet-log th{ color:#888; font-weight:600; }
   <!-- スコアボード画面 -->
   <div id="board">
     <button class="gear-btn" id="gearBtn">⚙</button>
+    <div class="game-target-badge" id="gameBadge"></div>
+    <div class="set-status" id="setStatus"></div>
     <div class="board-main">
       <div class="side" id="sideLeft">
         <div class="score-zone"><div class="score-num" id="scoreLeftNum"></div></div>
@@ -603,6 +707,19 @@ table.sheet-log th{ color:#888; font-weight:600; }
 
 </div>
 </div>
+
+<!-- 次のゲームへ進むモーダル -->
+<div class="confirm-overlay" id="nextGameOverlay">
+  <div class="confirm-box">
+    <p id="nextGameMsg"></p>
+    <div class="row">
+      <button class="ok" id="nextGameBtn" style="background:var(--yellow); color:#000;">次のゲームへ</button>
+    </div>
+  </div>
+</div>
+
+<!-- 簡易通知トースト -->
+<div id="toast" style="position:fixed; left:50%; bottom:12vh; transform:translateX(-50%) translateY(20px); background:rgba(20,20,20,0.95); color:#fff; padding:1.4vh 3vw; border-radius:10px; font-size:min(2.8vw,2.2vh); opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:70; white-space:nowrap;"></div>
 
 <!-- スコアシート -->
 <div id="sheetOverlay">
@@ -657,7 +774,8 @@ try{
 const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
 
 let settings = null;
-let state = null;      // 進行中の試合状態
+let match = null;      // 複数ゲームの進行管理
+let state = null;      // 進行中のゲーム状態
 let historyStack = [];
 let suppressRemote = false;
 let remoteApplyTimer = null;
@@ -678,6 +796,7 @@ function teamOf(playerName){
 
 /* ---------- 設定画面 ---------- */
 const segType = document.getElementById('segType');
+const segFormat = document.getElementById('segFormat');
 const segPoints = document.getElementById('segPoints');
 const segDeuce = document.getElementById('segDeuce');
 const customPointsRow = document.getElementById('customPointsRow');
@@ -692,6 +811,7 @@ const leftEndSelect = document.getElementById('leftEndSelect');
 const settingsErr = document.getElementById('settingsErr');
 
 let curType = 'singles';
+let curFormat = 'best3';
 let curPoints = 21;
 let curDeuce = true;
 
@@ -710,6 +830,13 @@ segType.addEventListener('click', e=>{
   nameA2.style.display = doubles ? 'block' : 'none';
   nameB2.style.display = doubles ? 'block' : 'none';
   refreshPlayerSelects();
+});
+
+segFormat.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  curFormat = btn.dataset.v;
+  setSeg(segFormat, curFormat);
 });
 
 segPoints.addEventListener('click', e=>{
@@ -804,13 +931,18 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 
   settings = {
     matchType: curType,
+    matchFormat: curFormat,
     pointsTarget: target,
     deuce: curDeuce,
     deuceMax: dMax,
     players,
     firstServer,
     firstReceiver,
-    initialLeftTeam: leftEnd
+    initialLeftTeam: leftEnd,
+    tournamentName: document.getElementById('tournamentName').value.trim(),
+    matchNumber: document.getElementById('matchNumber').value.trim(),
+    venueName: document.getElementById('venueName').value.trim(),
+    courtNumber: document.getElementById('courtNumber').value.trim()
   };
 
   startNewMatch();
@@ -818,32 +950,48 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 
 /* ---------- 試合状態の初期化 ---------- */
 function startNewMatch(){
-  const serverTeam = teamOf(settings.firstServer);
+  match = {
+    format: settings.matchFormat,
+    gamesToWin: settings.matchFormat === 'best3' ? 2 : 1,
+    games: [],
+    gameWins: { A:0, B:0 },
+    status: 'ongoing',
+    overallWinner: null,
+    startedAt: Date.now(),
+    finishedAt: null
+  };
+  startGame(1, settings.initialLeftTeam, settings.firstServer, settings.firstReceiver);
+}
+
+function startGame(gameNumber, leftTeam, firstServerName, firstReceiverName){
+  const serverTeam = teamOf(firstServerName);
   const receiverTeam = otherTeam(serverTeam);
 
   const positions = { A:{right:null,left:null}, B:{right:null,left:null} };
 
   if(settings.matchType === 'doubles'){
-    const serverPartner = partnerOf(serverTeam, settings.firstServer);
-    positions[serverTeam] = { right: settings.firstServer, left: serverPartner };
-    const receiverPartner = partnerOf(receiverTeam, settings.firstReceiver);
-    positions[receiverTeam] = { right: settings.firstReceiver, left: receiverPartner };
+    const serverPartner = partnerOf(serverTeam, firstServerName);
+    positions[serverTeam] = { right: firstServerName, left: serverPartner };
+    const receiverPartner = partnerOf(receiverTeam, firstReceiverName);
+    positions[receiverTeam] = { right: firstReceiverName, left: receiverPartner };
   }else{
-    positions[serverTeam] = { right: settings.firstServer, left: settings.firstServer };
-    positions[receiverTeam] = { right: settings.firstReceiver, left: settings.firstReceiver };
+    positions[serverTeam] = { right: firstServerName, left: firstServerName };
+    positions[receiverTeam] = { right: firstReceiverName, left: firstReceiverName };
   }
 
   state = {
-    rev: 1,
+    gameNumber,
+    rev: (state ? state.rev : 0) + 1,
     score: { A:0, B:0 },
     serverTeam,
     positions,
-    leftTeam: settings.initialLeftTeam,
+    leftTeam,
     pointLog: [],
     status: 'ongoing',
     winner: null,
+    midGameEndsSwapped: false,
     startedAt: Date.now(),
-    settings
+    finishedAt: null
   };
   historyStack = [];
 
@@ -915,20 +1063,76 @@ function awardPoint(winTeam){
     serverPlayerAfter: newServerPlayer
   });
 
+  // 最終ゲームでのエンドチェンジ（目標点の半分に先に到達した時点で1度だけ）
+  if(match.format === 'best3' && state.gameNumber === 3 && !state.midGameEndsSwapped){
+    const swapAt = Math.ceil(settings.pointsTarget / 2);
+    if(state.score.A >= swapAt || state.score.B >= swapAt){
+      state.leftTeam = otherTeam(state.leftTeam);
+      state.midGameEndsSwapped = true;
+      showToast(swapAt + '点でエンドチェンジしました');
+    }
+  }
+
   const w = checkWinner();
   if(w){
-    state.status = 'finished';
-    state.winner = w;
-    state.finishedAt = Date.now();
+    finishGame(w);
   }
 
   state.rev += 1;
   render();
   pushRemote();
+}
 
-  if(w){
+function finishGame(winTeam){
+  state.status = 'finished';
+  state.winner = winTeam;
+  state.finishedAt = Date.now();
+
+  match.games.push(snapshotState());
+  match.gameWins[winTeam] += 1;
+
+  if(match.gameWins[winTeam] >= match.gamesToWin){
+    match.status = 'finished';
+    match.overallWinner = winTeam;
+    match.finishedAt = state.finishedAt;
     setTimeout(()=>openScoreSheet(), 250);
+  }else{
+    setTimeout(()=>openNextGamePrompt(winTeam), 250);
   }
+}
+
+function openNextGamePrompt(prevWinTeam){
+  const nextGameNumber = state.gameNumber + 1;
+  document.getElementById('nextGameMsg').textContent =
+    `第${state.gameNumber}ゲーム終了　${fmtTeamName('A')} ${state.score.A} - ${state.score.B} ${fmtTeamName('B')}　（ゲームカウント ${match.gameWins.A}-${match.gameWins.B}）`;
+  document.getElementById('nextGameBtn').textContent = `第${nextGameNumber}ゲームへ進む`;
+  pendingNextGame = { gameNumber: nextGameNumber, prevWinTeam };
+  document.getElementById('nextGameOverlay').classList.add('active');
+}
+
+let pendingNextGame = null;
+document.getElementById('nextGameBtn').addEventListener('click', ()=>{
+  if(!pendingNextGame) return;
+  const { gameNumber, prevWinTeam } = pendingNextGame;
+  pendingNextGame = null;
+  document.getElementById('nextGameOverlay').classList.remove('active');
+
+  const newLeftTeam = otherTeam(state.leftTeam); // ゲームごとにエンドを交代
+  const newFirstServer = settings.players[prevWinTeam][0]; // 前ゲームの勝者側が次ゲームの最初のサーバー
+  const newFirstReceiver = settings.players[otherTeam(prevWinTeam)][0];
+  startGame(gameNumber, newLeftTeam, newFirstServer, newFirstReceiver);
+});
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(()=>{
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2400);
 }
 
 function undoLast(){
@@ -953,6 +1157,12 @@ function abortMatch(){
   state.status = 'aborted';
   state.finishedAt = Date.now();
   state.rev += 1;
+
+  match.games.push(snapshotState());
+  match.status = 'aborted';
+  match.overallWinner = null;
+  match.finishedAt = state.finishedAt;
+
   render();
   pushRemote();
   openScoreSheet();
@@ -1076,6 +1286,17 @@ function render(){
   renderSlots(slotsRight, rightTeam);
 
   undoBtn.disabled = historyStack.length === 0;
+
+  const gameBadge = document.getElementById('gameBadge');
+  const setStatus = document.getElementById('setStatus');
+  if(gameBadge){
+    gameBadge.textContent = `第${state.gameNumber}ゲーム　${settings.pointsTarget}点先取`;
+  }
+  if(setStatus){
+    setStatus.textContent = match.format === 'best3'
+      ? `ゲームカウント ${fmtTeamName('A')} ${match.gameWins.A} - ${match.gameWins.B} ${fmtTeamName('B')}`
+      : '';
+  }
 }
 
 /* ---------- タップ操作 ---------- */
@@ -1134,38 +1355,76 @@ function fmtTeamName(team){
   return settings.players[team].join(' / ');
 }
 
+function pointLedgerHtml(game, team){
+  // そのゲームでチームが得点した順に 1,2,3...点目の際のサーブ側コート(L/R)を表示
+  const isA = team === 'A';
+  const chips = game.pointLog
+    .filter(p => p.winTeam === team)
+    .map(p=>{
+      const sc = isA ? p.scoreA : p.scoreB;
+      const box = (sc % 2 === 0) ? 'R' : 'L';
+      return `<span class="chip"><b>${box}</b>${sc}</span>`;
+    }).join('');
+  return chips;
+}
+
+function gameSheetHtml(game, idx){
+  const winLabel = game.winner ? (game.winner === 'A' ? '◀ 勝ち' : '勝ち ▶') : '（未完了）';
+  return `
+    <div class="game-sheet">
+      <div class="game-title">第${idx + 1}ゲーム　${fmtTeamName('A')} ${game.score.A} - ${game.score.B} ${fmtTeamName('B')}　${winLabel}</div>
+      <div class="game-cols">
+        <div class="game-col">
+          <div class="col-name">${fmtTeamName('A')}</div>
+          <div class="chip-grid">${pointLedgerHtml(game, 'A')}</div>
+        </div>
+        <div class="game-col">
+          <div class="col-name">${fmtTeamName('B')}</div>
+          <div class="chip-grid">${pointLedgerHtml(game, 'B')}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function openScoreSheet(){
-  const s = state;
-  const dt = new Date(s.finishedAt || Date.now());
-  const dtStr = dt.toLocaleString('ja-JP');
-  const durMin = s.startedAt ? Math.max(1, Math.round((dt - s.startedAt) / 60000)) : null;
+  const allGames = match.games;
 
-  const winnerName = s.winner ? fmtTeamName(s.winner) : null;
-  const statusLabel = s.status === 'aborted' ? '（試合中止）' : '';
+  const startDt = new Date(match.startedAt);
+  const finishDt = new Date(match.finishedAt || Date.now());
+  const dateStr = startDt.toLocaleDateString('ja-JP');
+  const callTimeStr = finishDt.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
 
-  const rows = s.pointLog.map(p=>{
-    const serverMark = p.serverTeamAfter === 'A' ? `● ${p.serverPlayerAfter}` : `${p.serverPlayerAfter} ●`;
-    return `<tr>
-      <td>${p.seq}</td>
-      <td>${p.scoreA}</td>
-      <td>${p.scoreB}</td>
-      <td>${serverMark}</td>
-    </tr>`;
-  }).join('');
+  const statusLabel = match.status === 'aborted' ? '（試合中止）' : '';
+  const winnerName = match.overallWinner ? fmtTeamName(match.overallWinner) : null;
+  const eventLabel = settings.matchType === 'doubles' ? 'ダブルス' : 'シングルス';
+
+  const gamesHtml = allGames.map((g, i)=> gameSheetHtml(g, i)).join('');
+
+  const infoRow = (label, value)=> `<div class="info-cell"><span class="info-label">${label}</span><span class="info-value">${value || '　'}</span></div>`;
 
   sheetContent.innerHTML = `
-    <h2>スコアシート${statusLabel}</h2>
-    <div class="sub">${dtStr}${durMin ? '　所要時間: 約' + durMin + '分' : ''}　/　${settings.matchType === 'doubles' ? 'ダブルス' : 'シングルス'}　/　${settings.pointsTarget}点${settings.deuce ? '（セッティングあり・最大' + settings.deuceMax + '点）' : '（セッティングなし）'}</div>
+    <h2>スコアシート（得点用紙）${statusLabel}</h2>
+    <div class="info-grid">
+      ${infoRow('期日', dateStr)}
+      ${infoRow('種目', eventLabel)}
+      ${infoRow('大会名', settings.tournamentName)}
+      ${infoRow('試合番号', settings.matchNumber)}
+      ${infoRow('場所', settings.venueName)}
+      ${infoRow('コート番号', settings.courtNumber)}
+    </div>
     <div class="sheet-result">
-      <div class="name ${s.winner==='A' ? 'win':''}">${fmtTeamName('A')}</div>
-      <div class="final-score">${s.score.A} - ${s.score.B}</div>
-      <div class="name ${s.winner==='B' ? 'win':''}">${fmtTeamName('B')}</div>
+      <div class="name ${match.overallWinner==='A' ? 'win':''}">${fmtTeamName('A')}</div>
+      <div class="final-score">${match.gameWins.A} - ${match.gameWins.B}</div>
+      <div class="name ${match.overallWinner==='B' ? 'win':''}">${fmtTeamName('B')}</div>
     </div>
     ${winnerName ? `<div class="sub">勝者：${winnerName}</div>` : ''}
-    <table class="sheet-log">
-      <thead><tr><th>#</th><th>${fmtTeamName('A')}</th><th>${fmtTeamName('B')}</th><th>サーブ</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+    ${gamesHtml}
+    <div class="sign-row">
+      <div class="sign-cell">勝者署名　＿＿＿＿＿＿＿＿＿＿＿＿＿＿</div>
+      <div class="sign-cell">主審署名　＿＿＿＿＿＿＿＿＿＿＿＿＿＿</div>
+      <div class="sign-cell">コール時間　${callTimeStr}</div>
+    </div>
     <div class="sheet-btns">
       <button class="print-btn" id="printBtn">印刷 / PDF保存</button>
       <button class="new-btn" id="newMatchBtn">新しい試合へ</button>
@@ -1183,15 +1442,15 @@ function openScoreSheet(){
 }
 
 function archiveMatch(){
-  if(!dbReady || !matchesRef || !state) return;
+  if(!dbReady || !matchesRef || !match) return;
   try{
     matchesRef.push({
-      finishedAt: state.finishedAt || Date.now(),
+      finishedAt: match.finishedAt || Date.now(),
       settings,
-      score: state.score,
-      winner: state.winner,
-      status: state.status,
-      pointLog: state.pointLog
+      gameWins: match.gameWins,
+      overallWinner: match.overallWinner,
+      status: match.status,
+      games: match.games
     });
   }catch(e){ console.warn('archive失敗', e); }
 }
@@ -1211,7 +1470,8 @@ function renderPastMatches(){
     list.innerHTML = items.map(m=>{
       const d = new Date(m.finishedAt);
       const names = `${m.settings.players.A.join('/')} vs ${m.settings.players.B.join('/')}`;
-      return `<div class="past-row"><span>${d.toLocaleDateString('ja-JP')} ${names} ${m.score.A}-${m.score.B}</span></div>`;
+      const gw = m.gameWins || {A:0,B:0};
+      return `<div class="past-row"><span>${d.toLocaleDateString('ja-JP')} ${names} ${gw.A}-${gw.B}</span></div>`;
     }).join('');
   }).catch(()=>{ wrap.style.display = 'none'; });
 }
@@ -1220,7 +1480,7 @@ function renderPastMatches(){
 function pushRemote(){
   if(!dbReady || !matchRef) return;
   suppressRemote = true;
-  matchRef.set({ deviceId: DEVICE_ID, settings, state }).catch(e=>console.warn('sync失敗', e));
+  matchRef.set({ deviceId: DEVICE_ID, settings, state, match }).catch(e=>console.warn('sync失敗', e));
   clearTimeout(remoteApplyTimer);
   remoteApplyTimer = setTimeout(()=>{ suppressRemote = false; }, 800);
 }
@@ -1235,6 +1495,7 @@ if(dbReady){
 
     settings = val.settings;
     state = val.state;
+    match = val.match;
     historyStack = [];
     showBoard();
     render();
