@@ -237,53 +237,60 @@ html,body{
 .controls button.stop-btn{ color:var(--soft-danger); }
 .controls button:disabled{ color:#3a3a3a; }
 
-/* ---------- 設定画面（柔らかい配色） ---------- */
+/* ---------- 設定画面（縦画面固定・柔らかい配色・大きめUI） ---------- */
 #settings{
   position:relative;
   width:100%; height:100%;
   overflow-y:auto;
   background:var(--soft-bg);
   color:var(--soft-text);
-  padding:3vh 4vw 4vh;
+  padding:28px 20px 48px;
   display:none;
 }
 #settings.active{ display:block; }
+#settings > *{
+  max-width:520px;
+  margin-left:auto;
+  margin-right:auto;
+}
 .settings-title{
-  font-size:min(5vw,4vh);
+  font-size:clamp(24px, 7vw, 30px);
   font-weight:800;
-  margin:0 0 2vh;
+  margin:4px auto 22px;
   display:flex;
   align-items:center;
-  gap:0.6em;
+  gap:0.5em;
   color:var(--soft-text);
 }
 .settings-title .shuttle{ font-size:1.1em; }
 
 .field{
-  margin-bottom:2.2vh;
+  margin-bottom:22px;
 }
 .field label{
   display:block;
-  font-size:min(2.6vw,2.1vh);
+  font-size:clamp(15px, 4.2vw, 17px);
+  font-weight:600;
   color:var(--soft-text-dim);
-  margin-bottom:0.8vh;
-  letter-spacing:0.03em;
+  margin-bottom:10px;
+  letter-spacing:0.02em;
 }
 .seg{
   display:flex;
-  gap:1vw;
+  gap:10px;
   flex-wrap:wrap;
 }
 .seg button{
   flex:1;
-  min-width:80px;
-  padding:1.4vh 0;
+  min-width:96px;
+  min-height:52px;
+  padding:14px 8px;
   background:var(--soft-surface);
-  border:1px solid var(--soft-border);
+  border:1.5px solid var(--soft-border);
   color:var(--soft-text);
   border-radius:14px;
-  font-size:min(2.8vw,2.2vh);
-  font-weight:600;
+  font-size:clamp(16px, 4.5vw, 19px);
+  font-weight:700;
   box-shadow:var(--soft-shadow);
 }
 .seg button.on{
@@ -293,59 +300,62 @@ html,body{
 }
 input[type="text"], input[type="number"]{
   width:100%;
-  padding:1.4vh 1vw;
+  min-height:52px;
+  padding:12px 14px;
   background:var(--soft-surface);
-  border:1px solid var(--soft-border);
+  border:1.5px solid var(--soft-border);
   color:var(--soft-text);
   border-radius:12px;
-  font-size:min(2.8vw,2.2vh);
+  font-size:clamp(16px, 4.5vw, 19px);
 }
 select{
   width:100%;
-  padding:1.4vh 1vw;
+  min-height:52px;
+  padding:12px 14px;
   background:var(--soft-surface);
-  border:1px solid var(--soft-border);
+  border:1.5px solid var(--soft-border);
   color:var(--soft-text);
   border-radius:12px;
-  font-size:min(2.8vw,2.2vh);
+  font-size:clamp(16px, 4.5vw, 19px);
 }
 .two-col{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:1.5vw;
+  gap:12px;
 }
 .team-block{
   background:var(--soft-card);
-  border:1px solid var(--soft-border);
+  border:1.5px solid var(--soft-border);
   border-radius:16px;
-  padding:1.5vh 1vw;
-  margin-bottom:1.2vh;
+  padding:16px 14px;
+  margin-bottom:12px;
   box-shadow:var(--soft-shadow);
 }
 .team-block .team-label{
-  font-size:min(2.4vw,2vh);
+  font-size:clamp(14px, 4vw, 16px);
   color:var(--soft-text-dim);
-  margin-bottom:0.8vh;
-  font-weight:600;
+  margin-bottom:10px;
+  font-weight:700;
 }
-.team-block input{ margin-bottom:0.8vh; }
+.team-block input{ margin-bottom:10px; }
 .team-block input:last-child{ margin-bottom:0; }
 
-.deuce-max-row{ display:none; margin-top:1.2vh; }
+.deuce-max-row{ display:none; margin-top:14px; }
 .deuce-max-row.show{ display:block; }
-.custom-points-row{ display:none; margin-top:1.2vh; }
+.custom-points-row{ display:none; margin-top:14px; }
 .custom-points-row.show{ display:block; }
 
 .start-btn{
   width:100%;
-  padding:2vh 0;
+  min-height:60px;
+  padding:18px 0;
   background:linear-gradient(135deg, var(--soft-primary), var(--soft-primary-dark));
   color:#fff;
   border:none;
   border-radius:16px;
-  font-size:min(3.6vw,2.8vh);
+  font-size:clamp(19px, 5.5vw, 23px);
   font-weight:800;
-  margin-top:2vh;
+  margin-top:24px;
   box-shadow:var(--soft-shadow);
 }
 .start-btn:disabled{
@@ -354,36 +364,38 @@ select{
   box-shadow:none;
 }
 .hint{
-  font-size:min(2.2vw,1.8vh);
+  font-size:clamp(13px, 3.6vw, 15px);
   color:var(--soft-text-dim);
-  margin-top:0.6vh;
+  margin-top:8px;
+  line-height:1.5;
 }
 .err{
   color:var(--soft-danger-dark);
-  font-size:min(2.4vw,2vh);
-  margin-top:1vh;
+  font-size:clamp(14px, 4vw, 16px);
+  font-weight:600;
+  margin-top:12px;
   min-height:1em;
 }
 
 .icon-shuttle{ display:inline-block; }
 
 .past-matches{
-  margin-top:3vh;
-  border-top:1px solid var(--soft-border);
-  padding-top:2vh;
+  margin-top:32px;
+  border-top:1.5px solid var(--soft-border);
+  padding-top:20px;
 }
 .past-matches h3{
-  font-size:min(3vw,2.4vh);
+  font-size:clamp(16px, 4.5vw, 18px);
   color:var(--soft-text-dim);
-  margin:0 0 1.2vh;
-  font-weight:600;
+  margin:0 0 12px;
+  font-weight:700;
 }
 .past-row{
   display:flex;
   justify-content:space-between;
-  padding:1.2vh 0;
+  padding:12px 0;
   border-bottom:1px solid var(--soft-border);
-  font-size:min(2.6vw,2.1vh);
+  font-size:clamp(14px, 4vw, 16px);
   color:var(--soft-text);
 }
 .past-row button{
@@ -391,6 +403,7 @@ select{
   border:none;
   color:var(--soft-primary-dark);
   font-size:inherit;
+  font-weight:600;
 }
 
 /* 設定を開く小ボタン（試合中） */
@@ -619,9 +632,8 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 </head>
 <body>
 <div id="app">
-<div class="rotor">
 
-  <!-- 設定画面 -->
+  <!-- 設定画面（縦画面のまま表示） -->
   <div id="settings">
     <h1 class="settings-title"><span class="shuttle">🏸</span>バドる - 試合設定</h1>
 
@@ -719,7 +731,8 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
     </div>
   </div>
 
-  <!-- スコアボード画面 -->
+  <!-- スコアボード画面（横画面固定） -->
+  <div class="rotor">
   <div id="board">
     <button class="gear-btn" id="gearBtn">⚙</button>
     <div class="game-target-badge" id="gameBadge"></div>
@@ -1303,7 +1316,7 @@ function computeCardStyle(leftDigits, rightDigits){
 }
 
 function render(){
-  if(!state) return;
+  if(!state || !match) return;
   const leftTeam = state.leftTeam;
   const rightTeam = otherTeam(leftTeam);
 
@@ -1524,18 +1537,22 @@ function pushRemote(){
 
 if(dbReady){
   matchRef.on('value', snap=>{
-    const val = snap.val();
-    if(!val || !val.state) return;
-    if(val.deviceId === DEVICE_ID) return;
-    if(suppressRemote) return;
-    if(state && val.state.rev <= state.rev) return;
+    try{
+      const val = snap.val();
+      if(!val || !val.state || !val.match || !val.match.gameWins) return; // 旧形式データ等は無視
+      if(val.deviceId === DEVICE_ID) return;
+      if(suppressRemote) return;
+      if(state && val.state.rev <= state.rev) return;
 
-    settings = val.settings;
-    state = val.state;
-    match = val.match;
-    historyStack = [];
-    showBoard();
-    render();
+      settings = val.settings;
+      state = val.state;
+      match = val.match;
+      historyStack = [];
+      showBoard();
+      render();
+    }catch(e){
+      console.warn('リモート同期データの反映に失敗しました（無視します）', e);
+    }
   });
 }
 
