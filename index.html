@@ -611,23 +611,33 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 }
 table.score-grid{
   border-collapse:collapse;
-  height:100%;
+  width:100%;
 }
 table.score-grid td{
   border:1px solid var(--soft-border);
   text-align:center;
   vertical-align:middle;
-  min-width:22px;
+  min-width:20px;
   padding:2px 1px;
   font-size:10px;
   color:var(--soft-text-dim);
 }
-table.score-grid td.lr-tab{
-  writing-mode:vertical-rl;
+table.score-grid td.player-name{
+  writing-mode:horizontal-tb;
+  text-align:left;
+  white-space:nowrap;
+  font-size:11px;
   font-weight:700;
+  color:var(--soft-text);
+  background:var(--soft-card);
+  padding:2px 6px;
+  min-width:64px;
+}
+table.score-grid td.sr-mark{
+  font-weight:800;
   min-width:14px;
   background:var(--soft-card);
-  color:var(--soft-text-dim);
+  color:var(--soft-primary-dark);
 }
 table.score-grid td.filled{
   background:var(--soft-primary);
@@ -636,12 +646,6 @@ table.score-grid td.filled{
 }
 table.score-grid td.filled.team-b{
   background:var(--soft-secondary-dark);
-}
-table.score-grid td .lr-mark{
-  display:block;
-  font-size:8px;
-  line-height:1;
-  opacity:0.9;
 }
 
 .sign-row{
@@ -685,7 +689,7 @@ table.score-grid td .lr-mark{
   .score-grid-wrap{ overflow:visible; }
   table.score-grid{ width:100%; table-layout:fixed; }
   table.score-grid td{ border-color:#333; color:#000; min-width:0; }
-  table.score-grid td.lr-tab{ background:#fff; }
+  table.score-grid td.player-name, table.score-grid td.sr-mark{ background:#fff; }
   table.score-grid td.filled{ background:#ddd !important; color:#000; font-weight:800; }
   .sign-row{ color:#000; }
 }
@@ -751,8 +755,8 @@ table.score-grid td .lr-mark{
     <div class="field">
       <label>ゲームポイント</label>
       <div class="seg" id="segPoints">
-        <button data-v="21" class="on">21点</button>
-        <button data-v="15">15点</button>
+        <button data-v="21">21点</button>
+        <button data-v="15" class="on">15点</button>
         <button data-v="custom">入力</button>
       </div>
       <div class="custom-points-row" id="customPointsRow">
@@ -769,7 +773,7 @@ table.score-grid td .lr-mark{
       <div class="deuce-max-row show" id="deuceMaxRow">
         <label style="margin-top:0.8vh;">セッティング時の最大点</label>
         <input type="number" id="deuceMax" min="3" max="99">
-        <div class="hint">例）21点なら30点、15点なら17点が一般的です</div>
+        <div class="hint">例）15点なら21点、21点なら30点が一般的です</div>
       </div>
     </div>
 
@@ -952,7 +956,7 @@ const settingsErr = document.getElementById('settingsErr');
 
 let curType = 'singles';
 let curFormat = 'best3';
-let curPoints = 21;
+let curPoints = 15;
 let curDeuce = true;
 
 function setSeg(container, value, onchange){
@@ -988,7 +992,7 @@ segPoints.addEventListener('click', e=>{
     curPoints = 'custom';
   }else{
     curPoints = parseInt(btn.dataset.v, 10);
-    deuceMax.value = curPoints === 15 ? 17 : 30;
+    deuceMax.value = curPoints === 15 ? 21 : 30;
   }
 });
 
@@ -1000,7 +1004,7 @@ segDeuce.addEventListener('click', e=>{
   deuceMaxRow.classList.toggle('show', curDeuce);
 });
 
-deuceMax.value = 30;
+deuceMax.value = 21;
 
 function currentPlayers(){
   const a1 = document.getElementById('nameA1').value.trim() || '選手A1';
@@ -1131,6 +1135,8 @@ function startGame(gameNumber, leftTeam, firstServerName, firstReceiverName){
     status: 'ongoing',
     winner: null,
     midGameEndsSwapped: false,
+    initialServer: firstServerName,
+    initialReceiver: firstReceiverName,
     startedAt: Date.now(),
     finishedAt: null
   };
@@ -1502,15 +1508,33 @@ function maxScoreForGrid(){
   return settings.deuce ? settings.deuceMax : settings.pointsTarget;
 }
 
-function scoreGridCellsHtml(game, team, n){
-  const finalScore = game.score[team];
-  let html = '';
+function playerRowsForTeam(team){
+  return settings.matchType === 'doubles' ? settings.players[team] : [settings.players[team][0]];
+}
+
+function scoreGridPlayerRowHtml(game, team, playerName, n){
+  const isServerStart = game.initialServer === playerName;
+  const isReceiverStart = game.initialReceiver === playerName;
+
+  // このゲームでチームが得点した各得点値(1..finalScore)のうち、
+  // 「その得点を取った直後に次のサーブを行う選手」がplayerNameのものを集める
+  const credited = new Set();
+  game.pointLog.forEach(p=>{
+    if(p.winTeam !== team) return;
+    if(p.serverPlayerAfter !== playerName) return;
+    const sc = team === 'A' ? p.scoreA : p.scoreB;
+    credited.add(sc);
+  });
+
+  let html = `<td class="player-name">${playerName}</td>`;
+  html += `<td class="sr-mark">${isServerStart ? 'S' : (isReceiverStart ? 'R' : '')}</td>`;
+  html += `<td class="${(isServerStart || isReceiverStart) ? ('filled' + (team==='B' ? ' team-b' : '')) : ''}">${(isServerStart || isReceiverStart) ? '0' : ''}</td>`;
+
   for(let k = 1; k <= n; k++){
-    if(k <= finalScore){
-      const box = (k % 2 === 0) ? 'R' : 'L';
-      html += `<td class="filled${team === 'B' ? ' team-b' : ''}">${k}<span class="lr-mark">${box}</span></td>`;
+    if(credited.has(k)){
+      html += `<td class="filled${team === 'B' ? ' team-b' : ''}">${k}</td>`;
     }else{
-      html += `<td>${k}</td>`;
+      html += `<td></td>`;
     }
   }
   return html;
@@ -1525,19 +1549,15 @@ function gameSectionHtml(gameIndexLabel, game, n){
       </div>
     `;
   }
+  const rowsA = playerRowsForTeam('A').map(name=> `<tr>${scoreGridPlayerRowHtml(game, 'A', name, n)}</tr>`).join('');
+  const rowsB = playerRowsForTeam('B').map(name=> `<tr>${scoreGridPlayerRowHtml(game, 'B', name, n)}</tr>`).join('');
   return `
     <div class="game-section">
       <div class="game-vlabel">${gameIndexLabel}</div>
       <div class="score-grid-wrap">
         <table class="score-grid">
-          <tr>
-            <td class="lr-tab" rowspan="2">L<br>・<br>R</td>
-            ${scoreGridCellsHtml(game, 'A', n)}
-            <td class="lr-tab" rowspan="2">L<br>・<br>R</td>
-          </tr>
-          <tr>
-            ${scoreGridCellsHtml(game, 'B', n)}
-          </tr>
+          ${rowsA}
+          ${rowsB}
         </table>
       </div>
     </div>
