@@ -1674,6 +1674,7 @@ if(dbReady){
     try{
       const val = snap.val();
       if(!val || !val.state || !val.match || !val.match.gameWins) return; // 旧形式データ等は無視
+      if(val.match.status !== 'ongoing') return; // 終了・中止済みの試合は復元しない（開き直したら新規試合へ）
       if(val.deviceId === DEVICE_ID) return;
       if(suppressRemote) return;
       if(state && val.state.rev <= state.rev) return;
