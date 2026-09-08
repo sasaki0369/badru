@@ -844,7 +844,7 @@ table.score-grid td.filled.team-b{
       </div>
     </div>
     <div class="controls">
-      <button class="undo-btn" id="undoBtn">元に戻す</button>
+      <button class="undo-btn" id="undoBtn">Undo</button>
       <button class="change-btn" id="changeEndBtn">チェンジエンド</button>
       <button class="stop-btn" id="stopBtn">中止</button>
     </div>
@@ -858,6 +858,7 @@ table.score-grid td.filled.team-b{
   <div class="confirm-box">
     <p id="nextGameMsg"></p>
     <div class="row">
+      <button class="cancel" id="nextGameUndoBtn">Undo</button>
       <button class="ok" id="nextGameBtn" style="background:linear-gradient(135deg, var(--soft-primary), var(--soft-primary-dark)); color:#fff;">次のゲームへ</button>
     </div>
   </div>
@@ -1284,6 +1285,31 @@ document.getElementById('nextGameBtn').addEventListener('click', ()=>{
   startGame(gameNumber, newLeftTeam, newFirstServer, newFirstReceiver);
 });
 
+function undoFinalPoint(){
+  if(historyStack.length === 0) return;
+
+  // finishGame()でmatch側に加えられた記録（ゲーム結果・ゲームカウント・試合終了状態）を取り消す
+  if(match.games.length > 0){
+    const lastGame = match.games.pop();
+    const w = lastGame.winner;
+    if(w && match.gameWins[w] > 0){
+      match.gameWins[w] -= 1;
+    }
+  }
+  match.status = 'ongoing';
+  match.overallWinner = null;
+  match.finishedAt = null;
+
+  pendingNextGame = null;
+  document.getElementById('nextGameOverlay').classList.remove('active');
+  sheetOverlay.classList.remove('active');
+
+  undoLast();
+  showBoard();
+}
+
+document.getElementById('nextGameUndoBtn').addEventListener('click', undoFinalPoint);
+
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -1618,11 +1644,11 @@ function openScoreSheet(){
       ${infoLine('終了時間', endTimeStr)}
       <table class="name-score-table">
         <tr>
-          <td class="lr-tab" rowspan="${numGameSlots}">L<br>・<br>R</td>
+          <td class="lr-tab" rowspan="${numGameSlots}">L</td>
           <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('A')}</td>
           ${gameSummaryRow(allGames[0])}
           <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('B')}</td>
-          <td class="lr-tab" rowspan="${numGameSlots}">L<br>・<br>R</td>
+          <td class="lr-tab" rowspan="${numGameSlots}">R</td>
         </tr>
         ${numGameSlots > 1 ? `<tr>${gameSummaryRow(allGames[1])}</tr>` : ''}
         ${numGameSlots > 2 ? `<tr>${gameSummaryRow(allGames[2])}</tr>` : ''}
@@ -1644,6 +1670,7 @@ function openScoreSheet(){
       <div class="sign-cell">コール時間　${endTimeStr}</div>
     </div>
     <div class="sheet-btns">
+      ${match.status === 'finished' ? '<button class="print-btn" id="sheetUndoBtn">Undo</button>' : ''}
       <button class="print-btn" id="printBtn">印刷 / PDF保存</button>
       <button class="new-btn" id="newMatchBtn">新しい試合へ</button>
     </div>
@@ -1655,6 +1682,10 @@ function openScoreSheet(){
     sheetOverlay.classList.remove('active');
     showSettings();
   });
+  const sheetUndoBtn = document.getElementById('sheetUndoBtn');
+  if(sheetUndoBtn){
+    sheetUndoBtn.addEventListener('click', undoFinalPoint);
+  }
 
   sheetOverlay.classList.add('active');
 }
