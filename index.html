@@ -93,7 +93,7 @@ html,body{
   align-items:center;
   justify-content:flex-start;
   position:relative;
-  padding:1vh 0.6vw;
+  padding:1vh 3.2vw;
   min-width:0;
   min-height:0;
   border-right:1px solid #1a1a1a;
@@ -194,9 +194,10 @@ html,body{
 .slot.active-box{ box-shadow:inset 0 -3px 0 currentColor; }
 
 .mid-divider{
-  width:2px;
+  width:3px;
   align-self:stretch;
-  background:linear-gradient(to bottom, transparent, #333 15%, #333 85%, transparent);
+  margin:0 0.6vw;
+  background:linear-gradient(to bottom, transparent, #444 12%, #444 88%, transparent);
 }
 
 .game-target-badge{
@@ -329,6 +330,24 @@ select{
   grid-template-columns:1fr 1fr;
   gap:12px;
 }
+.two-col-swap{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:8px;
+  align-items:center;
+}
+.swap-btn{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:var(--soft-surface);
+  border:1.5px solid var(--soft-border);
+  color:var(--soft-primary-dark);
+  font-size:20px;
+  font-weight:800;
+  box-shadow:var(--soft-shadow);
+}
+.swap-btn:active{ background:var(--soft-primary); color:#fff; }
 .team-block{
   background:var(--soft-card);
   border:1.5px solid var(--soft-border);
@@ -491,71 +510,138 @@ table.sheet-log th, table.sheet-log td{
 }
 table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 
-.info-grid{
+/* ---------- 公式様式ヘッダー（期日・大会名等 ＋ 氏名登録表） ---------- */
+.sheet-header-grid{
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:0.8vh 3vw;
-  background:var(--soft-surface);
-  border:1px solid var(--soft-border);
-  border-radius:16px;
-  padding:1.6vh 2vw;
-  margin-bottom:2vh;
-  box-shadow:var(--soft-shadow);
+  grid-template-columns:1fr 2fr 1fr;
+  grid-template-rows:repeat(4, auto);
+  gap:4px 10px;
+  margin-bottom:16px;
+  font-size:clamp(12px, 3.2vw, 14px);
 }
-.info-cell{
+.info-line{
   display:flex;
-  justify-content:space-between;
-  font-size:min(2.6vw,1.9vh);
+  align-items:flex-end;
+  gap:4px;
   border-bottom:1px dashed var(--soft-border);
-  padding-bottom:0.4vh;
-}
-.info-label{ color:var(--soft-text-dim); }
-.info-value{ color:var(--soft-text); font-weight:600; }
-
-.game-sheet{
-  background:var(--soft-card);
-  border:1px solid var(--soft-border);
-  border-radius:16px;
-  padding:1.6vh 2vw;
-  margin-bottom:1.6vh;
-  box-shadow:var(--soft-shadow);
-}
-.game-title{
-  font-size:min(2.8vw,2vh);
-  font-weight:700;
-  margin-bottom:1vh;
+  padding-bottom:3px;
   color:var(--soft-text);
 }
-.game-cols{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:2vw;
+.sheet-header-grid > .info-line:nth-child(1){ grid-column:1; grid-row:1; }
+.sheet-header-grid > .info-line:nth-child(2){ grid-column:3; grid-row:1; }
+.sheet-header-grid > .info-line:nth-child(3){ grid-column:1; grid-row:2; }
+.sheet-header-grid > .info-line:nth-child(4){ grid-column:3; grid-row:2; }
+.sheet-header-grid > .info-line:nth-child(5){ grid-column:1; grid-row:3; }
+.sheet-header-grid > .info-line:nth-child(6){ grid-column:3; grid-row:3; }
+.sheet-header-grid > .info-line:nth-child(7){ grid-column:1; grid-row:4; }
+.sheet-header-grid > .info-line:nth-child(8){ grid-column:3; grid-row:4; }
+.info-line .lbl{ color:var(--soft-text-dim); white-space:nowrap; }
+.info-line .val{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.name-score-table{
+  grid-column:2;
+  grid-row:1 / span 3;
+  border-collapse:collapse;
+  width:100%;
+  height:100%;
 }
-.game-col .col-name{
-  font-size:min(2.4vw,1.8vh);
+.name-score-table td{
+  border:1px solid var(--soft-border);
+  text-align:center;
+  padding:2px 4px;
+}
+.name-score-table .lr-tab{
+  writing-mode:vertical-rl;
+  font-size:11px;
+  font-weight:700;
   color:var(--soft-text-dim);
-  margin-bottom:0.6vh;
-  font-weight:600;
+  width:16px;
+  background:var(--soft-card);
 }
-.chip-grid{
-  display:flex;
-  flex-wrap:wrap;
-  gap:0.5vh 0.5vw;
-}
-.chip{
-  display:inline-flex;
-  align-items:baseline;
-  gap:0.2em;
+.name-score-table .name-box{
+  font-weight:800;
+  font-size:clamp(13px, 3.6vw, 16px);
+  color:var(--soft-text);
   background:var(--soft-surface);
+  width:34%;
+}
+.name-score-table .mini-score{
+  color:var(--soft-text-dim);
+  font-weight:600;
+  font-size:12px;
+}
+
+/* ---------- 試合結果サマリー ---------- */
+
+/* ---------- ゲームごとの得点グリッド（公式様式） ---------- */
+.game-section{
+  display:flex;
   border:1px solid var(--soft-border);
   border-radius:8px;
-  padding:0.2vh 0.6vw;
-  font-size:min(2.2vw,1.6vh);
-  color:var(--soft-text);
+  overflow:hidden;
+  margin-bottom:10px;
 }
-.chip b{
-  color:var(--soft-primary-dark);
-  font-size:0.9em;
+.game-vlabel{
+  writing-mode:vertical-rl;
+  text-orientation:upright;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 4px;
+  font-size:clamp(11px, 3vw, 13px);
+  font-weight:700;
+  color:var(--soft-text);
+  background:var(--soft-card);
+  border-right:1px solid var(--soft-border);
+}
+.game-section.empty .game-vlabel{ color:var(--soft-text-dim); }
+.game-empty-note{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--soft-text-dim);
+  font-size:13px;
+  padding:10px;
+}
+.score-grid-wrap{
+  flex:1;
+  overflow-x:auto;
+}
+table.score-grid{
+  border-collapse:collapse;
+  height:100%;
+}
+table.score-grid td{
+  border:1px solid var(--soft-border);
+  text-align:center;
+  vertical-align:middle;
+  min-width:22px;
+  padding:2px 1px;
+  font-size:10px;
+  color:var(--soft-text-dim);
+}
+table.score-grid td.lr-tab{
+  writing-mode:vertical-rl;
+  font-weight:700;
+  min-width:14px;
+  background:var(--soft-card);
+  color:var(--soft-text-dim);
+}
+table.score-grid td.filled{
+  background:var(--soft-primary);
+  color:#fff;
+  font-weight:800;
+}
+table.score-grid td.filled.team-b{
+  background:var(--soft-secondary-dark);
+}
+table.score-grid td .lr-mark{
+  display:block;
+  font-size:8px;
+  line-height:1;
+  opacity:0.9;
 }
 
 .sign-row{
@@ -590,15 +676,17 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
   .sheet-result{ background:#f0f0f0; }
   .sheet-result .name.win{ color:#b8860b; }
   .sheet-btns{ display:none; }
-  table.sheet-log th{ color:#333; }
-  .info-grid{ background:#f5f5f5; }
-  .info-label{ color:#555; }
-  .info-value{ color:#000; }
-  .game-sheet{ border-color:#999; }
-  .game-title{ color:#000; }
-  .game-col .col-name{ color:#555; }
-  .chip{ background:#fff; border-color:#999; color:#000; }
-  .chip b{ color:#000; text-decoration:underline; }
+  .info-line{ color:#000; border-bottom-color:#999; }
+  .info-line .lbl{ color:#555; }
+  .name-score-table td{ border-color:#333; }
+  .name-score-table .name-box, .name-score-table .lr-tab{ background:#fff; color:#000; }
+  .game-section{ border-color:#333; }
+  .game-vlabel{ background:#fff; color:#000; border-right-color:#333; }
+  .score-grid-wrap{ overflow:visible; }
+  table.score-grid{ width:100%; table-layout:fixed; }
+  table.score-grid td{ border-color:#333; color:#000; min-width:0; }
+  table.score-grid td.lr-tab{ background:#fff; }
+  table.score-grid td.filled{ background:#ddd !important; color:#000; font-weight:800; }
   .sign-row{ color:#000; }
 }
 
@@ -614,22 +702,22 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 .confirm-box{
   background:var(--soft-bg);
   border:1px solid var(--soft-border);
-  border-radius:18px;
-  padding:3vh 4vw;
-  max-width:80vw;
+  border-radius:20px;
+  padding:3.5vh 4vw;
+  max-width:92vw;
   text-align:center;
   color:var(--soft-text);
   box-shadow:0 12px 30px rgba(92,74,58,0.25);
 }
-.confirm-box p{ font-size:min(3.2vw,2.4vh); margin:0 0 2vh; }
+.confirm-box p{ font-size:min(4.6vw,3.6vh); font-weight:600; line-height:1.5; margin:0 0 2.6vh; }
 .confirm-box .row{ display:flex; gap:2vw; }
 .confirm-box button{
   flex:1;
-  padding:1.4vh 0;
+  padding:2vh 0;
   border:none;
-  border-radius:12px;
-  font-size:min(2.8vw,2.2vh);
-  font-weight:700;
+  border-radius:14px;
+  font-size:min(4vw,3.2vh);
+  font-weight:800;
 }
 .confirm-box .cancel{ background:var(--soft-surface); color:var(--soft-text); border:1px solid var(--soft-border); }
 .confirm-box .ok{ background:linear-gradient(135deg, var(--soft-danger), var(--soft-danger-dark)); color:#fff; }
@@ -687,18 +775,20 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 
     <div class="field">
       <label>選手名</label>
-      <div class="two-col">
+      <div class="two-col-swap">
         <div class="team-block">
-          <div class="team-label">チームA</div>
+          <div class="team-label">LEFT</div>
           <input type="text" id="nameA1" placeholder="選手1" value="選手A1">
           <input type="text" id="nameA2" placeholder="選手2（ダブルス）" value="選手A2">
         </div>
+        <button type="button" id="swapSidesBtn" class="swap-btn" title="左右の選手名を入れ替え" aria-label="左右の選手名を入れ替え">⇄</button>
         <div class="team-block">
-          <div class="team-label">チームB</div>
+          <div class="team-label">RIGHT</div>
           <input type="text" id="nameB1" placeholder="選手1" value="選手B1">
           <input type="text" id="nameB2" placeholder="選手2（ダブルス）" value="選手B2">
         </div>
       </div>
+      <div class="hint">LEFTが試合開始時に画面の左に表示されます。中央のボタンで入れ替えられます。</div>
     </div>
 
     <div class="field">
@@ -709,11 +799,6 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
     <div class="field">
       <label>ファーストレシーバー</label>
       <select id="firstReceiver"></select>
-    </div>
-
-    <div class="field">
-      <label>コートエンド（画面左に表示する選手・チーム）</label>
-      <select id="leftEndSelect"></select>
     </div>
 
     <div class="field">
@@ -863,7 +948,6 @@ const nameA2 = document.getElementById('nameA2');
 const nameB2 = document.getElementById('nameB2');
 const firstServerSel = document.getElementById('firstServer');
 const firstReceiverSel = document.getElementById('firstReceiver');
-const leftEndSelect = document.getElementById('leftEndSelect');
 const settingsErr = document.getElementById('settingsErr');
 
 let curType = 'singles';
@@ -931,34 +1015,36 @@ function currentPlayers(){
 
 function refreshPlayerSelects(){
   const players = currentPlayers();
+  const sideLabel = { A:'LEFT', B:'RIGHT' };
   const all = [...players.A.map(n=>({n,t:'A'})), ...players.B.map(n=>({n,t:'B'}))];
 
-  firstServerSel.innerHTML = all.map(p=>`<option value="${p.n}">${p.n}（チーム${p.t}）</option>`).join('');
+  firstServerSel.innerHTML = all.map(p=>`<option value="${p.n}">${p.n}（${sideLabel[p.t]}）</option>`).join('');
 
   updateReceiverOptions();
-  updateLeftEndOptions();
 }
 
 function updateReceiverOptions(){
   const players = currentPlayers();
+  const sideLabel = { A:'LEFT', B:'RIGHT' };
   const serverName = firstServerSel.value;
   const serverTeam = players.A.includes(serverName) ? 'A' : 'B';
   const recvTeam = serverTeam === 'A' ? 'B' : 'A';
   const opts = players[recvTeam];
-  firstReceiverSel.innerHTML = opts.map(n=>`<option value="${n}">${n}（チーム${recvTeam}）</option>`).join('');
-}
-
-function updateLeftEndOptions(){
-  const players = currentPlayers();
-  leftEndSelect.innerHTML = [
-    `<option value="A">チームA（${players.A.join('・')}）</option>`,
-    `<option value="B">チームB（${players.B.join('・')}）</option>`
-  ].join('');
+  firstReceiverSel.innerHTML = opts.map(n=>`<option value="${n}">${n}（${sideLabel[recvTeam]}）</option>`).join('');
 }
 
 firstServerSel.addEventListener('change', updateReceiverOptions);
 ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
   document.getElementById(id).addEventListener('input', refreshPlayerSelects);
+});
+document.getElementById('swapSidesBtn').addEventListener('click', ()=>{
+  const a1 = document.getElementById('nameA1');
+  const a2 = document.getElementById('nameA2');
+  const b1 = document.getElementById('nameB1');
+  const b2 = document.getElementById('nameB2');
+  [a1.value, b1.value] = [b1.value, a1.value];
+  [a2.value, b2.value] = [b2.value, a2.value];
+  refreshPlayerSelects();
 });
 
 refreshPlayerSelects();
@@ -983,7 +1069,6 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 
   const firstServer = firstServerSel.value;
   const firstReceiver = firstReceiverSel.value;
-  const leftEnd = leftEndSelect.value;
 
   settings = {
     matchType: curType,
@@ -994,7 +1079,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
     players,
     firstServer,
     firstReceiver,
-    initialLeftTeam: leftEnd,
+    initialLeftTeam: 'A',
     tournamentName: document.getElementById('tournamentName').value.trim(),
     matchNumber: document.getElementById('matchNumber').value.trim(),
     venueName: document.getElementById('venueName').value.trim(),
@@ -1159,8 +1244,8 @@ function finishGame(winTeam){
 
 function openNextGamePrompt(prevWinTeam){
   const nextGameNumber = state.gameNumber + 1;
-  document.getElementById('nextGameMsg').textContent =
-    `第${state.gameNumber}ゲーム終了　${fmtTeamName('A')} ${state.score.A} - ${state.score.B} ${fmtTeamName('B')}　（ゲームカウント ${match.gameWins.A}-${match.gameWins.B}）`;
+  document.getElementById('nextGameMsg').innerHTML =
+    `第${state.gameNumber}ゲーム終了<br><b style="font-size:1.15em;">${fmtTeamName('A')} ${state.score.A} - ${state.score.B} ${fmtTeamName('B')}</b><br>（ゲームカウント ${match.gameWins.A}-${match.gameWins.B}）`;
   document.getElementById('nextGameBtn').textContent = `第${nextGameNumber}ゲームへ進む`;
   pendingNextGame = { gameNumber: nextGameNumber, prevWinTeam };
   document.getElementById('nextGameOverlay').classList.add('active');
@@ -1298,7 +1383,7 @@ function computeCardStyle(leftDigits, rightDigits){
   const zoneR = document.querySelector('#sideRight .score-zone');
   if(!zoneL || !zoneR) return null;
 
-  const minW = Math.min(zoneL.clientWidth, zoneR.clientWidth);
+  const minW = Math.min(zoneL.clientWidth, zoneR.clientWidth) * 0.94; // 左右クリアランス確保のため少し余裕を持たせる
   const minH = Math.min(zoneL.clientHeight, zoneR.clientHeight);
   if(minW <= 0 || minH <= 0) return null;
 
@@ -1413,33 +1498,47 @@ function fmtTeamName(team){
   return settings.players[team].join(' / ');
 }
 
-function pointLedgerHtml(game, team){
-  // そのゲームでチームが得点した順に 1,2,3...点目の際のサーブ側コート(L/R)を表示
-  const isA = team === 'A';
-  const chips = game.pointLog
-    .filter(p => p.winTeam === team)
-    .map(p=>{
-      const sc = isA ? p.scoreA : p.scoreB;
-      const box = (sc % 2 === 0) ? 'R' : 'L';
-      return `<span class="chip"><b>${box}</b>${sc}</span>`;
-    }).join('');
-  return chips;
+function maxScoreForGrid(){
+  return settings.deuce ? settings.deuceMax : settings.pointsTarget;
 }
 
-function gameSheetHtml(game, idx){
-  const winLabel = game.winner ? (game.winner === 'A' ? '◀ 勝ち' : '勝ち ▶') : '（未完了）';
+function scoreGridCellsHtml(game, team, n){
+  const finalScore = game.score[team];
+  let html = '';
+  for(let k = 1; k <= n; k++){
+    if(k <= finalScore){
+      const box = (k % 2 === 0) ? 'R' : 'L';
+      html += `<td class="filled${team === 'B' ? ' team-b' : ''}">${k}<span class="lr-mark">${box}</span></td>`;
+    }else{
+      html += `<td>${k}</td>`;
+    }
+  }
+  return html;
+}
+
+function gameSectionHtml(gameIndexLabel, game, n){
+  if(!game){
+    return `
+      <div class="game-section empty">
+        <div class="game-vlabel">${gameIndexLabel}</div>
+        <div class="game-empty-note">（未実施）</div>
+      </div>
+    `;
+  }
   return `
-    <div class="game-sheet">
-      <div class="game-title">第${idx + 1}ゲーム　${fmtTeamName('A')} ${game.score.A} - ${game.score.B} ${fmtTeamName('B')}　${winLabel}</div>
-      <div class="game-cols">
-        <div class="game-col">
-          <div class="col-name">${fmtTeamName('A')}</div>
-          <div class="chip-grid">${pointLedgerHtml(game, 'A')}</div>
-        </div>
-        <div class="game-col">
-          <div class="col-name">${fmtTeamName('B')}</div>
-          <div class="chip-grid">${pointLedgerHtml(game, 'B')}</div>
-        </div>
+    <div class="game-section">
+      <div class="game-vlabel">${gameIndexLabel}</div>
+      <div class="score-grid-wrap">
+        <table class="score-grid">
+          <tr>
+            <td class="lr-tab" rowspan="2">L<br>・<br>R</td>
+            ${scoreGridCellsHtml(game, 'A', n)}
+            <td class="lr-tab" rowspan="2">L<br>・<br>R</td>
+          </tr>
+          <tr>
+            ${scoreGridCellsHtml(game, 'B', n)}
+          </tr>
+        </table>
       </div>
     </div>
   `;
@@ -1447,41 +1546,68 @@ function gameSheetHtml(game, idx){
 
 function openScoreSheet(){
   const allGames = match.games;
+  const n = maxScoreForGrid();
 
   const startDt = new Date(match.startedAt);
   const finishDt = new Date(match.finishedAt || Date.now());
   const dateStr = startDt.toLocaleDateString('ja-JP');
-  const callTimeStr = finishDt.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
+  const startTimeStr = startDt.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
+  const endTimeStr = finishDt.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
 
   const statusLabel = match.status === 'aborted' ? '（試合中止）' : '';
   const winnerName = match.overallWinner ? fmtTeamName(match.overallWinner) : null;
   const eventLabel = settings.matchType === 'doubles' ? 'ダブルス' : 'シングルス';
 
-  const gamesHtml = allGames.map((g, i)=> gameSheetHtml(g, i)).join('');
+  const infoLine = (label, value)=> `<div class="info-line"><span class="lbl">${label}：</span><span class="val">${value || ''}</span></div>`;
 
-  const infoRow = (label, value)=> `<div class="info-cell"><span class="info-label">${label}</span><span class="info-value">${value || '　'}</span></div>`;
+  const gameSummaryRow = (g)=> g ? `<td class="mini-score">${g.score.A} － ${g.score.B}</td>` : `<td class="mini-score">－</td>`;
+
+  const numGameSlots = match.format === 'best3' ? 3 : 1;
+  const gameLabels = ['第一ゲーム', '第二ゲーム', '第三ゲーム'];
+  const gamesHtml = Array.from({ length: numGameSlots }).map((_, i)=>
+    gameSectionHtml(gameLabels[i], allGames[i] || null, n)
+  ).join('');
+  const summaryRowsHtml = Array.from({ length: numGameSlots }).map((_, i)=>
+    `<tr>${gameSummaryRow(allGames[i])}</tr>`
+  ).join('');
 
   sheetContent.innerHTML = `
-    <h2>スコアシート（得点用紙）${statusLabel}</h2>
-    <div class="info-grid">
-      ${infoRow('期日', dateStr)}
-      ${infoRow('種目', eventLabel)}
-      ${infoRow('大会名', settings.tournamentName)}
-      ${infoRow('試合番号', settings.matchNumber)}
-      ${infoRow('場所', settings.venueName)}
-      ${infoRow('コート番号', settings.courtNumber)}
+    <h2 style="text-align:center;">ス　コ　ア　シ　ー　ト（得点用紙）${statusLabel}</h2>
+    <div class="sheet-header-grid">
+      ${infoLine('期日', dateStr)}
+      ${infoLine('種目', eventLabel)}
+      ${infoLine('大会名', settings.tournamentName)}
+      ${infoLine('試合番号', settings.matchNumber)}
+      ${infoLine('場所', settings.venueName)}
+      ${infoLine('コート番号', settings.courtNumber)}
+      ${infoLine('開始時間', startTimeStr)}
+      ${infoLine('終了時間', endTimeStr)}
+      <table class="name-score-table">
+        <tr>
+          <td class="lr-tab" rowspan="${numGameSlots}">L<br>・<br>R</td>
+          <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('A')}</td>
+          ${gameSummaryRow(allGames[0])}
+          <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('B')}</td>
+          <td class="lr-tab" rowspan="${numGameSlots}">L<br>・<br>R</td>
+        </tr>
+        ${numGameSlots > 1 ? `<tr>${gameSummaryRow(allGames[1])}</tr>` : ''}
+        ${numGameSlots > 2 ? `<tr>${gameSummaryRow(allGames[2])}</tr>` : ''}
+      </table>
     </div>
+
     <div class="sheet-result">
       <div class="name ${match.overallWinner==='A' ? 'win':''}">${fmtTeamName('A')}</div>
       <div class="final-score">${match.gameWins.A} - ${match.gameWins.B}</div>
       <div class="name ${match.overallWinner==='B' ? 'win':''}">${fmtTeamName('B')}</div>
     </div>
     ${winnerName ? `<div class="sub">勝者：${winnerName}</div>` : ''}
+
     ${gamesHtml}
+
     <div class="sign-row">
       <div class="sign-cell">勝者署名　＿＿＿＿＿＿＿＿＿＿＿＿＿＿</div>
       <div class="sign-cell">主審署名　＿＿＿＿＿＿＿＿＿＿＿＿＿＿</div>
-      <div class="sign-cell">コール時間　${callTimeStr}</div>
+      <div class="sign-cell">コール時間　${endTimeStr}</div>
     </div>
     <div class="sheet-btns">
       <button class="print-btn" id="printBtn">印刷 / PDF保存</button>
