@@ -560,6 +560,7 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 .name-score-table .name-box{
   font-weight:800;
   font-size:clamp(13px, 3.6vw, 16px);
+  line-height:1.4;
   color:var(--soft-text);
   background:var(--soft-surface);
   width:30%;
@@ -623,7 +624,7 @@ table.score-grid td{
   border:1px solid var(--soft-border);
   text-align:center;
   vertical-align:middle;
-  min-width:20px;
+  min-width:15px;
   padding:2px 1px;
   font-size:10px;
   color:var(--soft-text-dim);
@@ -632,16 +633,20 @@ table.score-grid td.player-name{
   writing-mode:horizontal-tb;
   text-align:left;
   white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
   font-size:11px;
   font-weight:700;
   color:var(--soft-text);
   background:var(--soft-card);
-  padding:2px 6px;
-  min-width:64px;
+  padding:2px 4px;
+  min-width:100px;
+  max-width:100px;
 }
 table.score-grid td.sr-mark{
   font-weight:800;
-  min-width:14px;
+  min-width:11px;
+  padding:2px 0;
   background:var(--soft-card);
   color:var(--soft-primary-dark);
 }
@@ -699,8 +704,10 @@ table.score-grid td.filled.team-b{
   .game-vlabel{ background:#fff; color:#000; border-right-color:#333; }
   .score-grid-wrap{ overflow:visible; }
   table.score-grid{ width:100%; table-layout:fixed; }
-  table.score-grid td{ border-color:#333; color:#000; min-width:0; }
-  table.score-grid td.player-name, table.score-grid td.sr-mark{ background:#fff; }
+  table.score-grid td{ border-color:#333; color:#000; }
+  table.score-grid td:not(.player-name):not(.sr-mark){ min-width:0; width:auto; }
+  table.score-grid td.player-name{ width:100px; min-width:100px; max-width:100px; background:#fff; }
+  table.score-grid td.sr-mark{ width:11px; min-width:11px; background:#fff; }
   table.score-grid td.filled{ background:#ddd !important; color:#000; font-weight:800; }
   .sign-row{ color:#000; }
 }
@@ -1571,35 +1578,35 @@ function fmtTeamName(team){
   return settings.players[team].join(' / ');
 }
 
-function maxScoreForGrid(){
-  return settings.deuce ? settings.deuceMax : settings.pointsTarget;
+function fmtTeamNameStacked(team){
+  return settings.players[team].join('<br>');
 }
 
 function playerRowsForTeam(team){
   return settings.matchType === 'doubles' ? settings.players[team] : [settings.players[team][0]];
 }
 
-function scoreGridPlayerRowHtml(game, team, playerName, n){
+function scoreGridPlayerRowHtml(game, team, playerName, totalPoints){
   const isServerStart = game.initialServer === playerName;
   const isReceiverStart = game.initialReceiver === playerName;
 
-  // このゲームでチームが得点した各得点値(1..finalScore)のうち、
-  // 「その得点を取った直後に次のサーブを行う選手」がplayerNameのものを集める
-  const credited = new Set();
+  // 列＝試合全体のポイント通し番号(seq)。相手チームの得点とも縦の列が重ならないようにする。
+  // 「そのポイントを取った直後に次のサーブを行う選手」の行に、そのチームの得点値を記入する。
+  const bySeq = new Map();
   game.pointLog.forEach(p=>{
     if(p.winTeam !== team) return;
     if(p.serverPlayerAfter !== playerName) return;
     const sc = team === 'A' ? p.scoreA : p.scoreB;
-    credited.add(sc);
+    bySeq.set(p.seq, sc);
   });
 
   let html = `<td class="player-name">${playerName}</td>`;
   html += `<td class="sr-mark">${isServerStart ? 'S' : (isReceiverStart ? 'R' : '')}</td>`;
   html += `<td class="${(isServerStart || isReceiverStart) ? ('filled' + (team==='B' ? ' team-b' : '')) : ''}">${(isServerStart || isReceiverStart) ? '0' : ''}</td>`;
 
-  for(let k = 1; k <= n; k++){
-    if(credited.has(k)){
-      html += `<td class="filled${team === 'B' ? ' team-b' : ''}">${k}</td>`;
+  for(let seq = 1; seq <= totalPoints; seq++){
+    if(bySeq.has(seq)){
+      html += `<td class="filled${team === 'B' ? ' team-b' : ''}">${bySeq.get(seq)}</td>`;
     }else{
       html += `<td></td>`;
     }
@@ -1607,7 +1614,7 @@ function scoreGridPlayerRowHtml(game, team, playerName, n){
   return html;
 }
 
-function gameSectionHtml(gameIndexLabel, game, n){
+function gameSectionHtml(gameIndexLabel, game){
   if(!game){
     return `
       <div class="game-section empty">
@@ -1616,8 +1623,9 @@ function gameSectionHtml(gameIndexLabel, game, n){
       </div>
     `;
   }
-  const rowsA = playerRowsForTeam('A').map(name=> `<tr>${scoreGridPlayerRowHtml(game, 'A', name, n)}</tr>`).join('');
-  const rowsB = playerRowsForTeam('B').map(name=> `<tr>${scoreGridPlayerRowHtml(game, 'B', name, n)}</tr>`).join('');
+  const totalPoints = game.pointLog.length;
+  const rowsA = playerRowsForTeam('A').map(name=> `<tr>${scoreGridPlayerRowHtml(game, 'A', name, totalPoints)}</tr>`).join('');
+  const rowsB = playerRowsForTeam('B').map(name=> `<tr>${scoreGridPlayerRowHtml(game, 'B', name, totalPoints)}</tr>`).join('');
   return `
     <div class="game-section">
       <div class="game-vlabel">${gameIndexLabel}</div>
@@ -1633,7 +1641,6 @@ function gameSectionHtml(gameIndexLabel, game, n){
 
 function openScoreSheet(){
   const allGames = match.games;
-  const n = maxScoreForGrid();
 
   const startDt = new Date(match.startedAt);
   const finishDt = new Date(match.finishedAt || Date.now());
@@ -1652,7 +1659,7 @@ function openScoreSheet(){
   const numGameSlots = match.format === 'best3' ? 3 : 1;
   const gameLabels = ['第一ゲーム', '第二ゲーム', '第三ゲーム'];
   const gamesHtml = Array.from({ length: numGameSlots }).map((_, i)=>
-    gameSectionHtml(gameLabels[i], allGames[i] || null, n)
+    gameSectionHtml(gameLabels[i], allGames[i] || null)
   ).join('');
 
   sheetContent.innerHTML = `
@@ -1669,11 +1676,11 @@ function openScoreSheet(){
       <table class="name-score-table">
         <tr>
           <td class="lr-tab" rowspan="${numGameSlots}">L</td>
-          <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('A')}</td>
+          <td class="name-box" rowspan="${numGameSlots}">${fmtTeamNameStacked('A')}</td>
           <td class="game-count" rowspan="${numGameSlots}">${match.gameWins.A}</td>
           ${gameSummaryRow(allGames[0])}
           <td class="game-count" rowspan="${numGameSlots}">${match.gameWins.B}</td>
-          <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('B')}</td>
+          <td class="name-box" rowspan="${numGameSlots}">${fmtTeamNameStacked('B')}</td>
           <td class="lr-tab" rowspan="${numGameSlots}">R</td>
         </tr>
         ${numGameSlots > 1 ? `<tr>${gameSummaryRow(allGames[1])}</tr>` : ''}
@@ -1681,11 +1688,6 @@ function openScoreSheet(){
       </table>
     </div>
 
-    <div class="sheet-result">
-      <div class="name ${match.overallWinner==='A' ? 'win':''}">${fmtTeamName('A')}</div>
-      <div class="final-score">${match.gameWins.A} - ${match.gameWins.B}</div>
-      <div class="name ${match.overallWinner==='B' ? 'win':''}">${fmtTeamName('B')}</div>
-    </div>
     ${winnerName ? `<div class="sub">勝者：${winnerName}</div>` : ''}
 
     ${gamesHtml}
