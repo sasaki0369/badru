@@ -1256,6 +1256,8 @@ function awardPoint(winTeam){
   pushRemote();
 }
 
+let pendingFinishTimer = null;
+
 function finishGame(winTeam){
   state.status = 'finished';
   state.winner = winTeam;
@@ -1268,9 +1270,9 @@ function finishGame(winTeam){
     match.status = 'finished';
     match.overallWinner = winTeam;
     match.finishedAt = state.finishedAt;
-    setTimeout(()=>openScoreSheet(), 250);
+    pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openScoreSheet(); }, 250);
   }else{
-    setTimeout(()=>openNextGamePrompt(winTeam), 250);
+    pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openNextGamePrompt(winTeam); }, 250);
   }
 }
 
@@ -1299,18 +1301,6 @@ document.getElementById('nextGameBtn').addEventListener('click', ()=>{
 function undoFinalPoint(){
   if(historyStack.length === 0) return;
 
-  // finishGame()でmatch側に加えられた記録（ゲーム結果・ゲームカウント・試合終了状態）を取り消す
-  if(match.games.length > 0){
-    const lastGame = match.games.pop();
-    const w = lastGame.winner;
-    if(w && match.gameWins[w] > 0){
-      match.gameWins[w] -= 1;
-    }
-  }
-  match.status = 'ongoing';
-  match.overallWinner = null;
-  match.finishedAt = null;
-
   pendingNextGame = null;
   document.getElementById('nextGameOverlay').classList.remove('active');
   sheetOverlay.classList.remove('active');
@@ -1335,8 +1325,34 @@ function showToast(msg){
 
 function undoLast(){
   if(historyStack.length === 0) return;
+  const wasFinishing = state.status !== 'ongoing';
   state = historyStack.pop();
   state.rev += 1;
+
+  if(wasFinishing){
+    // 直前の得点でゲーム／試合が終了していた場合は、match側の記録（ゲーム結果・
+    // ゲームカウント・試合終了状態）も一緒に巻き戻す。盤面の通常Undoボタンでも
+    // 次の画面（次ゲームへ進む／スコアシート）のUndoボタンでも、同じ経路で
+    // 安全に巻き戻せるようにするための共通処理。
+    if(pendingFinishTimer){
+      clearTimeout(pendingFinishTimer);
+      pendingFinishTimer = null;
+    }
+    if(match.games.length > 0){
+      const lastGame = match.games[match.games.length - 1];
+      if(lastGame.gameNumber === state.gameNumber){
+        match.games.pop();
+        const w = lastGame.winner;
+        if(w && match.gameWins[w] > 0){
+          match.gameWins[w] -= 1;
+        }
+      }
+    }
+    match.status = 'ongoing';
+    match.overallWinner = null;
+    match.finishedAt = null;
+  }
+
   render();
   pushRemote();
 }
@@ -1351,7 +1367,7 @@ function changeEnd(){
 }
 
 function abortMatch(){
-  if(!state) return;
+  if(!state || state.status !== 'ongoing') return;
   state.status = 'aborted';
   state.finishedAt = Date.now();
   state.rev += 1;
@@ -1637,9 +1653,6 @@ function openScoreSheet(){
   const gameLabels = ['第一ゲーム', '第二ゲーム', '第三ゲーム'];
   const gamesHtml = Array.from({ length: numGameSlots }).map((_, i)=>
     gameSectionHtml(gameLabels[i], allGames[i] || null, n)
-  ).join('');
-  const summaryRowsHtml = Array.from({ length: numGameSlots }).map((_, i)=>
-    `<tr>${gameSummaryRow(allGames[i])}</tr>`
   ).join('');
 
   sheetContent.innerHTML = `
