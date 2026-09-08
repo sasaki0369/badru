@@ -551,8 +551,7 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
   padding:2px 4px;
 }
 .name-score-table .lr-tab{
-  writing-mode:vertical-rl;
-  font-size:11px;
+  font-size:13px;
   font-weight:700;
   color:var(--soft-text-dim);
   width:16px;
@@ -563,12 +562,19 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
   font-size:clamp(13px, 3.6vw, 16px);
   color:var(--soft-text);
   background:var(--soft-surface);
-  width:34%;
+  width:30%;
 }
 .name-score-table .mini-score{
   color:var(--soft-text-dim);
   font-weight:600;
   font-size:12px;
+}
+.name-score-table .game-count{
+  font-weight:800;
+  font-size:clamp(16px, 4.5vw, 20px);
+  color:var(--soft-primary-dark);
+  background:var(--soft-card);
+  width:10%;
 }
 
 /* ---------- 試合結果サマリー ---------- */
@@ -672,6 +678,10 @@ table.score-grid td.filled.team-b{
 .sheet-btns .print-btn{ background:var(--soft-surface); color:var(--soft-text); border:1px solid var(--soft-border); }
 .sheet-btns .new-btn{ background:linear-gradient(135deg, var(--soft-primary), var(--soft-primary-dark)); color:#fff; }
 
+@page{
+  size: A4 landscape;
+  margin: 10mm;
+}
 @media print{
   body *{ visibility:hidden; }
   #sheetOverlay, #sheetOverlay *{ visibility:visible; }
@@ -684,6 +694,7 @@ table.score-grid td.filled.team-b{
   .info-line .lbl{ color:#555; }
   .name-score-table td{ border-color:#333; }
   .name-score-table .name-box, .name-score-table .lr-tab{ background:#fff; color:#000; }
+  .name-score-table .game-count{ background:#fff; color:#000; }
   .game-section{ border-color:#333; }
   .game-vlabel{ background:#fff; color:#000; border-right-color:#333; }
   .score-grid-wrap{ overflow:visible; }
@@ -1646,7 +1657,9 @@ function openScoreSheet(){
         <tr>
           <td class="lr-tab" rowspan="${numGameSlots}">L</td>
           <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('A')}</td>
+          <td class="game-count" rowspan="${numGameSlots}">${match.gameWins.A}</td>
           ${gameSummaryRow(allGames[0])}
+          <td class="game-count" rowspan="${numGameSlots}">${match.gameWins.B}</td>
           <td class="name-box" rowspan="${numGameSlots}">${fmtTeamName('B')}</td>
           <td class="lr-tab" rowspan="${numGameSlots}">R</td>
         </tr>
