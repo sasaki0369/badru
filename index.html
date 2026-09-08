@@ -738,8 +738,8 @@ table.score-grid td.filled.team-b{
     <div class="field">
       <label>種目</label>
       <div class="seg" id="segType">
-        <button data-v="singles" class="on">シングルス</button>
-        <button data-v="doubles">ダブルス</button>
+        <button data-v="singles">シングルス</button>
+        <button data-v="doubles" class="on">ダブルス</button>
       </div>
     </div>
 
@@ -954,7 +954,7 @@ const firstServerSel = document.getElementById('firstServer');
 const firstReceiverSel = document.getElementById('firstReceiver');
 const settingsErr = document.getElementById('settingsErr');
 
-let curType = 'singles';
+let curType = 'doubles';
 let curFormat = 'best3';
 let curPoints = 15;
 let curDeuce = true;
@@ -965,14 +965,19 @@ function setSeg(container, value, onchange){
   });
 }
 
+function applyTypeVisibility(){
+  const doubles = curType === 'doubles';
+  nameA2.style.display = doubles ? 'block' : 'none';
+  nameB2.style.display = doubles ? 'block' : 'none';
+}
+applyTypeVisibility();
+
 segType.addEventListener('click', e=>{
   const btn = e.target.closest('button');
   if(!btn) return;
   curType = btn.dataset.v;
   setSeg(segType, curType);
-  const doubles = curType === 'doubles';
-  nameA2.style.display = doubles ? 'block' : 'none';
-  nameB2.style.display = doubles ? 'block' : 'none';
+  applyTypeVisibility();
   refreshPlayerSelects();
 });
 
