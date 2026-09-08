@@ -1027,7 +1027,11 @@ function refreshPlayerSelects(){
   const sideLabel = { A:'LEFT', B:'RIGHT' };
   const all = [...players.A.map(n=>({n,t:'A'})), ...players.B.map(n=>({n,t:'B'}))];
 
+  const prevServerValue = firstServerSel.value;
   firstServerSel.innerHTML = all.map(p=>`<option value="${p.n}">${p.n}（${sideLabel[p.t]}）</option>`).join('');
+  if(all.some(p=> p.n === prevServerValue)){
+    firstServerSel.value = prevServerValue; // LEFT/RIGHTが入れ替わっても選択中の選手自体は維持する
+  }
 
   updateReceiverOptions();
 }
@@ -1039,7 +1043,12 @@ function updateReceiverOptions(){
   const serverTeam = players.A.includes(serverName) ? 'A' : 'B';
   const recvTeam = serverTeam === 'A' ? 'B' : 'A';
   const opts = players[recvTeam];
+
+  const prevReceiverValue = firstReceiverSel.value;
   firstReceiverSel.innerHTML = opts.map(n=>`<option value="${n}">${n}（${sideLabel[recvTeam]}）</option>`).join('');
+  if(opts.includes(prevReceiverValue)){
+    firstReceiverSel.value = prevReceiverValue; // 同様にLEFT/RIGHTの入れ替えでは選手自体を維持する
+  }
 }
 
 firstServerSel.addEventListener('change', updateReceiverOptions);
