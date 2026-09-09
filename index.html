@@ -835,6 +835,21 @@ table.score-grid td.filled.team-b{
       </div>
     </div>
 
+    <div class="field">
+      <label>大会Now連携</label>
+      <div class="team-block">
+        <div class="two-col">
+          <input type="text" id="taikaEventId" placeholder="大会ID">
+          <input type="number" id="taikaCourtNo" placeholder="コート番号" min="1">
+        </div>
+        <div class="seg" id="segTaikaLink" style="margin-top:1vh;">
+          <button type="button" data-v="off" class="on">連携しない</button>
+          <button type="button" data-v="on">連携する</button>
+        </div>
+        <div class="hint" id="taikaStatusHint">連携すると、大会Nowから配信された次の試合が自動的に反映されます。</div>
+      </div>
+    </div>
+
     <div class="err" id="settingsErr"></div>
     <button class="start-btn" id="startBtn">試合開始</button>
 
@@ -920,17 +935,53 @@ const firebaseConfig = {
 };
 
 let dbReady = false;
+let db = null;
 let matchRef = null;
 let matchesRef = null;
 try{
   firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+  db = firebase.database();
   matchRef = db.ref('badoru/currentMatch');
   matchesRef = db.ref('badoru/matches');
   dbReady = true;
 }catch(e){
   console.warn('Firebase未設定のためローカルのみで動作します', e);
 }
+
+/* ============================================================
+   大会Now連携
+============================================================ */
+const TAIKA_LINK_KEY = 'badoru_taikanow_link';
+function loadTaikaLink(){
+  try{ return JSON.parse(localStorage.getItem(TAIKA_LINK_KEY) || 'null'); }catch(e){ return null; }
+}
+function saveTaikaLink(link){
+  try{ localStorage.setItem(TAIKA_LINK_KEY, JSON.stringify(link)); }catch(e){}
+}
+let taikaLink = loadTaikaLink(); // {eventId, courtNo, enabled}
+let taikaCourtListenerRef = null;
+let taikaCourtData = null; // 直近取得したコート状態のキャッシュ
+let matchRefListenerTarget = null; // subscribeMatchRef()より前に宣言（TDZ回避）
+
+function taikaCourtRef(){
+  if(!dbReady || !db || !taikaLink || !taikaLink.enabled || !taikaLink.eventId || !taikaLink.courtNo) return null;
+  return db.ref('taikainow/' + taikaLink.eventId + '/courts/' + taikaLink.courtNo);
+}
+
+function applyTaikaLinkToMatchRef(){
+  // 連携時は「badoru/currentMatch」の代わりにコート専用パスを使い、
+  // 複数コートが同時進行してもスコアが混線しないようにする
+  if(!dbReady || !db) return;
+  if(taikaLink && taikaLink.enabled && taikaLink.eventId && taikaLink.courtNo){
+    matchRef = db.ref('badoru/courts/' + taikaLink.courtNo + '/currentMatch');
+  }else{
+    matchRef = db.ref('badoru/currentMatch');
+  }
+  if(typeof subscribeMatchRef === 'function') subscribeMatchRef();
+}
+// 初回のmatchRef確定は、DEVICE_ID等の宣言が済んだ後（設定画面初期化時のreapplyTaikaLink）で行う。
+// ここで即時呼び出すと、まだ宣言されていないconst/letにsubscribeMatchRef経由でアクセスしてしまうため呼ばない。
+
 
 /* ============================================================
    状態管理
@@ -972,6 +1023,10 @@ const nameB2 = document.getElementById('nameB2');
 const firstServerSel = document.getElementById('firstServer');
 const firstReceiverSel = document.getElementById('firstReceiver');
 const settingsErr = document.getElementById('settingsErr');
+const taikaEventIdInp = document.getElementById('taikaEventId');
+const taikaCourtNoInp = document.getElementById('taikaCourtNo');
+const segTaikaLink = document.getElementById('segTaikaLink');
+const taikaStatusHint = document.getElementById('taikaStatusHint');
 
 let curType = 'doubles';
 let curFormat = 'best3';
@@ -1084,6 +1139,138 @@ document.getElementById('swapSidesBtn').addEventListener('click', ()=>{
   refreshPlayerSelects();
 });
 
+/* ---------- 大会Now連携 ---------- */
+function setTaikaSeg(value){
+  [...segTaikaLink.children].forEach(btn=>{
+    btn.classList.toggle('on', btn.dataset.v === value);
+  });
+}
+function applyTaikaMatchToForm(match){
+  if(!match) return;
+  document.getElementById('nameA1').value = (match.teamA && match.teamA[0]) || '選手A1';
+  document.getElementById('nameA2').value = (match.teamA && match.teamA[1]) || '選手A2';
+  document.getElementById('nameB1').value = (match.teamB && match.teamB[0]) || '選手B1';
+  document.getElementById('nameB2').value = (match.teamB && match.teamB[1]) || '選手B2';
+  const doubles = match.matchType === 'doubles';
+  curType = doubles ? 'doubles' : 'singles';
+  setSeg(segType, curType);
+  applyTypeVisibility();
+  if(match.matchCode){
+    document.getElementById('matchNumber').value = match.matchCode;
+  }
+  refreshPlayerSelects();
+}
+let lastTaikaMatchId = null;
+function renderTaikaStatusHint(courtData){
+  if(!taikaLink || !taikaLink.enabled){
+    taikaStatusHint.textContent = '連携すると、大会Nowから配信された次の試合が自動的に反映されます。';
+    return;
+  }
+  if(!courtData){
+    taikaStatusHint.textContent = '大会Nowのデータを待っています…（大会IDを確認してください）';
+    return;
+  }
+  if(courtData.status === 'idle' || !courtData.match){
+    taikaStatusHint.textContent = '大会Now連携：次の試合待ちです。試合が配信されると自動的に入力されます。';
+  }else if(courtData.status === 'assigned'){
+    taikaStatusHint.textContent = '大会Now連携：試合が配信されました。内容を確認して「試合開始」を押してください。';
+  }else if(courtData.status === 'live'){
+    taikaStatusHint.textContent = '大会Now連携：この試合は進行中として記録されています。';
+  }
+}
+function stopTaikaListener(){
+  if(taikaCourtListenerRef){
+    try{ taikaCourtListenerRef.off('value'); }catch(e){}
+    taikaCourtListenerRef = null;
+  }
+}
+function startTaikaListener(){
+  stopTaikaListener();
+  const ref = taikaCourtRef();
+  if(!ref) return;
+  taikaCourtListenerRef = ref;
+  ref.on('value', snap=>{
+    const data = snap.val();
+    taikaCourtData = data;
+    renderTaikaStatusHint(data);
+    // 試合中でない時に、新しく配信された試合があれば自動反映する
+    // （結果送信→次の配信が同期的に連続することがあるため、設定画面の表示有無では判定しない）
+    if(state && state.status === 'ongoing') return;
+    if(data && data.status === 'assigned' && data.match){
+      const matchId = data.match.id || (data.match.matchCode + '_' + JSON.stringify(data.match.teamA));
+      if(matchId !== lastTaikaMatchId){
+        lastTaikaMatchId = matchId;
+        applyTaikaMatchToForm(data.match);
+      }
+    }
+  });
+}
+function reapplyTaikaLink(){
+  applyTaikaLinkToMatchRef();
+  if(taikaLink && taikaLink.enabled){
+    startTaikaListener();
+  }else{
+    stopTaikaListener();
+    renderTaikaStatusHint(null);
+  }
+}
+function notifyTaikaMatchLive(){
+  const ref = taikaCourtRef();
+  if(!ref) return;
+  ref.update({ status:'live', live:null }).catch(()=>{});
+}
+function notifyTaikaMatchFinished(result){
+  const ref = taikaCourtRef();
+  if(!ref) return;
+  lastTaikaMatchId = null;
+  ref.update({ status:'idle', match:null, live:null, lastResult: result, updatedAt: Date.now() }).catch(()=>{});
+}
+function mirrorTaikaLiveScore(){
+  if(!state || !match) return;
+  const ref = taikaCourtRef();
+  if(!ref) return;
+  ref.child('live').set({
+    scoreA: state.score.A,
+    scoreB: state.score.B,
+    gameWinsA: match.gameWins.A,
+    gameWinsB: match.gameWins.B
+  }).catch(()=>{});
+}
+if(taikaLink){
+  taikaEventIdInp.value = taikaLink.eventId || '';
+  taikaCourtNoInp.value = taikaLink.courtNo || '';
+  setTaikaSeg(taikaLink.enabled ? 'on' : 'off');
+}else{
+  setTaikaSeg('off');
+}
+segTaikaLink.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const enabled = btn.dataset.v === 'on';
+  taikaLink = {
+    eventId: taikaEventIdInp.value.trim(),
+    courtNo: taikaCourtNoInp.value.trim(),
+    enabled: enabled && !!taikaEventIdInp.value.trim() && !!taikaCourtNoInp.value.trim()
+  };
+  if(enabled && !taikaLink.enabled){
+    settingsErr.textContent = '大会IDとコート番号を入力してから連携してください';
+  }else{
+    settingsErr.textContent = '';
+  }
+  setTaikaSeg(taikaLink.enabled ? 'on' : 'off');
+  saveTaikaLink(taikaLink);
+  reapplyTaikaLink();
+});
+[taikaEventIdInp, taikaCourtNoInp].forEach(inp=>{
+  inp.addEventListener('change', ()=>{
+    if(!taikaLink || !taikaLink.enabled) return;
+    taikaLink = { eventId: taikaEventIdInp.value.trim(), courtNo: taikaCourtNoInp.value.trim(), enabled: true };
+    saveTaikaLink(taikaLink);
+    reapplyTaikaLink();
+  });
+});
+reapplyTaikaLink();
+
 refreshPlayerSelects();
 document.getElementById('startBtn').addEventListener('click', ()=>{
   settingsErr.textContent = '';
@@ -1124,6 +1311,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   };
 
   startNewMatch();
+  notifyTaikaMatchLive();
 });
 
 /* ---------- 試合状態の初期化 ---------- */
@@ -1509,6 +1697,7 @@ function render(){
   renderSlots(slotsRight, rightTeam);
 
   undoBtn.disabled = historyStack.length === 0;
+  mirrorTaikaLiveScore();
 
   const gameBadge = document.getElementById('gameBadge');
   const setStatus = document.getElementById('setStatus');
@@ -1706,6 +1895,17 @@ function openScoreSheet(){
 
   document.getElementById('printBtn').addEventListener('click', ()=>window.print());
   document.getElementById('newMatchBtn').addEventListener('click', ()=>{
+    if(taikaLink && taikaLink.enabled){
+      notifyTaikaMatchFinished({
+        status: match.status,
+        winner: match.overallWinner,
+        gameWinsA: match.gameWins.A,
+        gameWinsB: match.gameWins.B,
+        teamA: settings.players.A,
+        teamB: settings.players.B,
+        finishedAt: match.finishedAt
+      });
+    }
     archiveMatch();
     sheetOverlay.classList.remove('active');
     showSettings();
@@ -1762,7 +1962,13 @@ function pushRemote(){
   remoteApplyTimer = setTimeout(()=>{ suppressRemote = false; }, 800);
 }
 
-if(dbReady){
+// matchRefListenerTarget は先頭付近で宣言済み（TDZ回避のためここでは宣言しない）
+function subscribeMatchRef(){
+  if(!dbReady) return;
+  if(matchRefListenerTarget){
+    try{ matchRefListenerTarget.off('value'); }catch(e){}
+  }
+  matchRefListenerTarget = matchRef;
   matchRef.on('value', snap=>{
     try{
       const val = snap.val();
@@ -1783,6 +1989,7 @@ if(dbReady){
     }
   });
 }
+subscribeMatchRef();
 
 /* ---------- 画面向き変更時の再描画 ---------- */
 window.addEventListener('resize', ()=>{ if(state) render(); });
