@@ -1223,7 +1223,14 @@ function notifyTaikaMatchFinished(result){
   const ref = taikaCourtRef();
   if(!ref) return;
   lastTaikaMatchId = null;
-  ref.update({ status:'idle', match:null, live:null, lastResult: result, updatedAt: Date.now() }).catch(()=>{});
+  const pointsA = (match && match.games) ? match.games.reduce((s,g)=>s+g.score.A, 0) : 0;
+  const pointsB = (match && match.games) ? match.games.reduce((s,g)=>s+g.score.B, 0) : 0;
+  const assignedMatch = (taikaCourtData && taikaCourtData.match) ? taikaCourtData.match : null;
+  const refInfo = assignedMatch
+    ? { refType: assignedMatch.refType || null, refId: assignedMatch.refId || null, refMatchIndex: (assignedMatch.refMatchIndex !== undefined ? assignedMatch.refMatchIndex : null) }
+    : { refType: null, refId: null, refMatchIndex: null };
+  const payload = Object.assign({ pointsA, pointsB }, result, refInfo);
+  ref.update({ status:'idle', match:null, live:null, lastResult: payload, updatedAt: Date.now() }).catch(()=>{});
 }
 function mirrorTaikaLiveScore(){
   if(!state || !match) return;
