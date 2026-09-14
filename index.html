@@ -307,6 +307,7 @@ html,body{
 }
 input[type="text"], input[type="number"]{
   width:100%;
+  height:52px;
   min-height:52px;
   padding:12px 14px;
   background:var(--soft-surface);
@@ -314,6 +315,11 @@ input[type="text"], input[type="number"]{
   color:var(--soft-text);
   border-radius:12px;
   font-size:clamp(16px, 4.5vw, 19px);
+  box-sizing:border-box;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button{
+  margin:0;
 }
 select{
   width:100%;
@@ -971,12 +977,18 @@ try{
   }
 }catch(e){}
 let taikaCourtListenerRef = null;
+let taikaRulesListenerRef = null;
 let taikaCourtData = null; // 直近取得したコート状態のキャッシュ
 let matchRefListenerTarget = null; // subscribeMatchRef()より前に宣言（TDZ回避）
 
 function taikaCourtRef(){
   if(!dbReady || !db || !taikaLink || !taikaLink.enabled || !taikaLink.eventId || !taikaLink.courtNo) return null;
   return db.ref('taikainow/' + taikaLink.eventId + '/courts/' + taikaLink.courtNo);
+}
+
+function taikaEventRulesRef(){
+  if(!dbReady || !db || !taikaLink || !taikaLink.enabled || !taikaLink.eventId) return null;
+  return db.ref('taikainow/' + taikaLink.eventId + '/matchRules');
 }
 
 function applyTaikaLinkToMatchRef(){
@@ -1194,6 +1206,30 @@ function stopTaikaListener(){
     try{ taikaCourtListenerRef.off('value'); }catch(e){}
     taikaCourtListenerRef = null;
   }
+  if(taikaRulesListenerRef){
+    try{ taikaRulesListenerRef.off('value'); }catch(e){}
+    taikaRulesListenerRef = null;
+  }
+}
+function applyTaikaRulesToForm(rules){
+  if(!rules) return;
+  if(rules.format === 'single' || rules.format === 'best3'){
+    curFormat = rules.format;
+    setSeg(segFormat, curFormat);
+  }
+  if(rules.points === 15 || rules.points === 21){
+    curPoints = rules.points;
+    setSeg(segPoints, String(rules.points));
+    customPointsRow.classList.remove('show');
+  }
+  if(typeof rules.deuce === 'boolean'){
+    curDeuce = rules.deuce;
+    setSeg(segDeuce, rules.deuce ? 'on' : 'off');
+    deuceMaxRow.classList.toggle('show', rules.deuce);
+  }
+  if(rules.deuceMax){
+    deuceMax.value = rules.deuceMax;
+  }
 }
 function startTaikaListener(){
   stopTaikaListener();
@@ -1215,6 +1251,14 @@ function startTaikaListener(){
       }
     }
   });
+  const rulesRef = taikaEventRulesRef();
+  if(rulesRef){
+    taikaRulesListenerRef = rulesRef;
+    rulesRef.on('value', snap=>{
+      if(state && state.status === 'ongoing') return; // 試合中は上書きしない
+      applyTaikaRulesToForm(snap.val());
+    });
+  }
 }
 function reapplyTaikaLink(){
   applyTaikaLinkToMatchRef();
