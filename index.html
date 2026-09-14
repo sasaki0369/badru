@@ -959,6 +959,17 @@ function saveTaikaLink(link){
   try{ localStorage.setItem(TAIKA_LINK_KEY, JSON.stringify(link)); }catch(e){}
 }
 let taikaLink = loadTaikaLink(); // {eventId, courtNo, enabled}
+// URLパラメータ（大会Nowが発行する連携リンク）が付いている場合は、それを優先して自動連携する
+// 例: index.html?taikaEvent=xxxxx&court=3
+try{
+  const urlParams = new URLSearchParams(location.search);
+  const urlEventId = urlParams.get('taikaEvent');
+  const urlCourtNo = urlParams.get('court');
+  if(urlEventId && urlCourtNo){
+    taikaLink = { eventId: urlEventId, courtNo: urlCourtNo, enabled: true };
+    saveTaikaLink(taikaLink);
+  }
+}catch(e){}
 let taikaCourtListenerRef = null;
 let taikaCourtData = null; // 直近取得したコート状態のキャッシュ
 let matchRefListenerTarget = null; // subscribeMatchRef()より前に宣言（TDZ回避）
