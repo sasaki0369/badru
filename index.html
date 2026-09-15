@@ -858,6 +858,10 @@ table.score-grid td.filled.team-b{
 
     <div class="err" id="settingsErr"></div>
     <button class="start-btn" id="startBtn">試合開始</button>
+    <div class="row" style="margin-top:1vh; gap:1.5vw;">
+      <button type="button" class="cancel" id="retireBeforeA" style="flex:1; font-size:min(2.6vw,2.2vh); padding:1.2vh 0;">A不戦敗で記録</button>
+      <button type="button" class="cancel" id="retireBeforeB" style="flex:1; font-size:min(2.6vw,2.2vh); padding:1.2vh 0;">B不戦敗で記録</button>
+    </div>
 
     <div class="past-matches" id="pastMatchesWrap" style="display:none;">
       <h3>過去の試合</h3>
@@ -885,11 +889,24 @@ table.score-grid td.filled.team-b{
     <div class="controls">
       <button class="undo-btn" id="undoBtn">Undo</button>
       <button class="change-btn" id="changeEndBtn">チェンジエンド</button>
+      <button class="stop-btn" id="retireBtn">棄権</button>
       <button class="stop-btn" id="stopBtn">中止</button>
     </div>
   </div>
 
 </div>
+</div>
+
+<!-- 棄権：どちら側が棄権するか選択するモーダル -->
+<div class="confirm-overlay" id="retireOverlay">
+  <div class="confirm-box">
+    <p>どちらが棄権しますか？</p>
+    <div class="row" style="flex-direction:column; gap:1.2vh;">
+      <button class="ok" id="retireA" style="width:100%;"></button>
+      <button class="ok" id="retireB" style="width:100%;"></button>
+      <button class="cancel" id="retireCancel" style="width:100%;">キャンセル</button>
+    </div>
+  </div>
 </div>
 
 <!-- 次のゲームへ進むモーダル -->
@@ -1189,16 +1206,17 @@ function renderTaikaStatusHint(courtData){
     taikaStatusHint.textContent = '連携すると、大会Nowから配信された次の試合が自動的に反映されます。';
     return;
   }
+  const courtLabel = taikaLink.courtNo ? `【コート${taikaLink.courtNo}】` : '';
   if(!courtData){
-    taikaStatusHint.textContent = '大会Nowのデータを待っています…（大会IDを確認してください）';
+    taikaStatusHint.textContent = `${courtLabel}大会Nowのデータを待っています…（大会IDを確認してください）`;
     return;
   }
   if(courtData.status === 'idle' || !courtData.match){
-    taikaStatusHint.textContent = '大会Now連携：次の試合待ちです。試合が配信されると自動的に入力されます。';
+    taikaStatusHint.textContent = `${courtLabel}大会Now連携：次の試合待ちです。試合が配信されると自動的に入力されます。`;
   }else if(courtData.status === 'assigned'){
-    taikaStatusHint.textContent = '大会Now連携：試合が配信されました。内容を確認して「試合開始」を押してください。';
+    taikaStatusHint.textContent = `${courtLabel}大会Now連携：試合が配信されました。内容を確認して「試合開始」を押してください。`;
   }else if(courtData.status === 'live'){
-    taikaStatusHint.textContent = '大会Now連携：この試合は進行中として記録されています。';
+    taikaStatusHint.textContent = `${courtLabel}大会Now連携：この試合は進行中として記録されています。`;
   }
 }
 function stopTaikaListener(){
@@ -1376,6 +1394,15 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   notifyTaikaMatchLive();
 });
 
+document.getElementById('retireBeforeA').addEventListener('click', ()=>{
+  const p = currentPlayers();
+  openConfirm(p.A.join('・') + ' を不戦敗として記録しますか？', ()=>{ retireBeforeStart('A'); });
+});
+document.getElementById('retireBeforeB').addEventListener('click', ()=>{
+  const p = currentPlayers();
+  openConfirm(p.B.join('・') + ' を不戦敗として記録しますか？', ()=>{ retireBeforeStart('B'); });
+});
+
 /* ---------- 試合状態の初期化 ---------- */
 function startNewMatch(){
   match = {
@@ -1392,7 +1419,7 @@ function startNewMatch(){
 }
 
 function startGame(gameNumber, leftTeam, firstServerName, firstReceiverName){
-  const serverTeam = teamOf(firstServerName);
+  const serverTeam = teamOf(firstServerName) || 'A'; // 万一名前が一致しない場合でもクラッシュしないようフォールバック
   const receiverTeam = otherTeam(serverTeam);
 
   const positions = { A:{right:null,left:null}, B:{right:null,left:null} };
@@ -1639,6 +1666,69 @@ function abortMatch(){
   openScoreSheet();
 }
 
+function retireMatch(retiredSide){
+  if(!state || state.status !== 'ongoing') return;
+  const winnerSide = retiredSide === 'A' ? 'B' : 'A';
+  state.status = 'finished';
+  state.winner = winnerSide;
+  state.finishedAt = Date.now();
+  state.rev += 1;
+
+  match.games.push(snapshotState());
+  match.gameWins[winnerSide] = match.gamesToWin; // 棄権により、勝者側が試合に必要なゲーム数を獲得したものとして扱う
+  match.status = 'finished';
+  match.overallWinner = winnerSide;
+  match.finishedAt = state.finishedAt;
+  match.retired = true;
+  match.retiredSide = retiredSide;
+
+  render();
+  pushRemote();
+  openScoreSheet();
+}
+
+function retireBeforeStart(retiredSide){
+  // 試合開始前（欠場・出場辞退）の不戦勝/不戦敗を記録する
+  const players = currentPlayers();
+  const winnerSide = retiredSide === 'A' ? 'B' : 'A';
+
+  settings = {
+    matchType: curType,
+    matchFormat: curFormat,
+    pointsTarget: curPoints === 'custom' ? (parseInt(customPoints.value,10)||15) : curPoints,
+    deuce: curDeuce,
+    deuceMax: curDeuce ? (parseInt(deuceMax.value,10)||21) : (curPoints==='custom'?(parseInt(customPoints.value,10)||15):curPoints),
+    players,
+    firstServer: players.A[0],
+    firstReceiver: players.B[0]
+  };
+  match = {
+    format: settings.matchFormat,
+    gamesToWin: settings.matchFormat === 'best3' ? 2 : 1,
+    games: [],
+    gameWins: { A: winnerSide==='A' ? (settings.matchFormat==='best3'?2:1) : 0, B: winnerSide==='B' ? (settings.matchFormat==='best3'?2:1) : 0 },
+    status: 'finished',
+    overallWinner: winnerSide,
+    startedAt: Date.now(),
+    finishedAt: Date.now(),
+    retired: true,
+    retiredSide: retiredSide
+  };
+  state = {
+    gameNumber: 1, rev: 1, score: { A:0, B:0 }, serverTeam: winnerSide,
+    positions: { A:{right:null,left:null}, B:{right:null,left:null} },
+    leftTeam: 'A', pointLog: [], status: 'finished', winner: winnerSide,
+    midGameEndsSwapped: false, finishedAt: Date.now()
+  };
+  historyStack = [];
+
+  boardEl.classList.add('active');
+  settingsEl.classList.remove('active');
+  render();
+  pushRemote();
+  openScoreSheet();
+}
+
 /* ---------- 描画 ---------- */
 const boardEl = document.getElementById('board');
 const settingsEl = document.getElementById('settings');
@@ -1764,7 +1854,8 @@ function render(){
   const gameBadge = document.getElementById('gameBadge');
   const setStatus = document.getElementById('setStatus');
   if(gameBadge){
-    gameBadge.textContent = `第${state.gameNumber}ゲーム　${settings.pointsTarget}点先取`;
+    const courtPrefix = (taikaLink && taikaLink.enabled && taikaLink.courtNo) ? `コート${taikaLink.courtNo}　・　` : '';
+    gameBadge.textContent = `${courtPrefix}第${state.gameNumber}ゲーム　${settings.pointsTarget}点先取`;
   }
   if(setStatus){
     setStatus.textContent = match.format === 'best3'
@@ -1800,6 +1891,24 @@ document.getElementById('stopBtn').addEventListener('click', ()=>{
   openConfirm('試合を中止しますか？', ()=>{
     abortMatch();
   });
+});
+
+document.getElementById('retireBtn').addEventListener('click', ()=>{
+  if(!state || state.status !== 'ongoing') return;
+  document.getElementById('retireA').textContent = fmtTeamName('A') + ' が棄権';
+  document.getElementById('retireB').textContent = fmtTeamName('B') + ' が棄権';
+  document.getElementById('retireOverlay').classList.add('active');
+});
+document.getElementById('retireCancel').addEventListener('click', ()=>{
+  document.getElementById('retireOverlay').classList.remove('active');
+});
+document.getElementById('retireA').addEventListener('click', ()=>{
+  document.getElementById('retireOverlay').classList.remove('active');
+  retireMatch('A');
+});
+document.getElementById('retireB').addEventListener('click', ()=>{
+  document.getElementById('retireOverlay').classList.remove('active');
+  retireMatch('B');
 });
 
 /* ---------- 確認ダイアログ ---------- */
@@ -1899,7 +2008,7 @@ function openScoreSheet(){
   const startTimeStr = startDt.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
   const endTimeStr = finishDt.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
 
-  const statusLabel = match.status === 'aborted' ? '（試合中止）' : '';
+  const statusLabel = match.status === 'aborted' ? '（試合中止）' : (match.retired ? `（${fmtTeamName(match.retiredSide)} 棄権）` : '');
   const winnerName = match.overallWinner ? fmtTeamName(match.overallWinner) : null;
   const eventLabel = settings.matchType === 'doubles' ? 'ダブルス' : 'シングルス';
 
@@ -1965,7 +2074,9 @@ function openScoreSheet(){
         gameWinsB: match.gameWins.B,
         teamA: settings.players.A,
         teamB: settings.players.B,
-        finishedAt: match.finishedAt
+        finishedAt: match.finishedAt,
+        retired: !!match.retired,
+        retiredSide: match.retired ? match.retiredSide : null
       });
     }
     archiveMatch();
