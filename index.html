@@ -270,6 +270,24 @@ html,body{
   color:var(--soft-text);
 }
 .settings-title .shuttle{ font-size:1.1em; }
+.settings-title-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.settings-title-row .settings-title{ margin:4px 0 22px; }
+.help-btn{
+  flex-shrink:0; width:34px; height:34px; border-radius:50%;
+  background:var(--soft-surface); border:1.5px solid var(--soft-border);
+  color:var(--soft-text-dim); font-size:16px; font-weight:800;
+}
+.help-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:300;padding:20px}
+.help-modal-bg.active{display:flex}
+.help-modal-box{background:var(--soft-surface,#fff);border-radius:18px;padding:22px;max-width:420px;width:100%;max-height:82vh;display:flex;flex-direction:column;color:var(--soft-text,#222)}
+.help-modal-box h2{font-size:18px;font-weight:800;margin-bottom:14px}
+.help-modal-scroll{overflow-y:auto;flex:1;padding-right:4px}
+.help-modal-section{margin-bottom:16px}
+.help-modal-section-title{font-size:14px;font-weight:700;margin-bottom:5px}
+.help-modal-list{margin:0;padding-left:18px}
+.help-modal-list li{font-size:12.5px;line-height:1.7;margin-bottom:4px;opacity:.85}
+.help-modal-list b{opacity:1}
+.help-modal-close{margin-top:14px;width:100%;padding:12px 0;border:none;border-radius:12px;background:var(--accent,#d63800);color:#fff;font-size:15px;font-weight:700}
 
 .field{
   margin-bottom:22px;
@@ -757,7 +775,10 @@ table.score-grid td.filled.team-b{
 
   <!-- 設定画面（縦画面のまま表示） -->
   <div id="settings">
-    <h1 class="settings-title"><span class="shuttle">🏸</span>バドる - 試合設定</h1>
+    <div class="settings-title-row">
+      <h1 class="settings-title"><span class="shuttle">🏸</span>バドる - 試合設定</h1>
+      <button type="button" id="helpBtn" class="help-btn">?</button>
+    </div>
 
     <div class="field">
       <label>種目</label>
@@ -906,6 +927,15 @@ table.score-grid td.filled.team-b{
       <button class="ok" id="retireB" style="width:100%;"></button>
       <button class="cancel" id="retireCancel" style="width:100%;">キャンセル</button>
     </div>
+  </div>
+</div>
+
+<!-- 使い方モーダル -->
+<div class="help-modal-bg" id="helpModalBg">
+  <div class="help-modal-box">
+    <h2>バドる の使い方</h2>
+    <div class="help-modal-scroll" id="helpModalScroll"></div>
+    <button class="help-modal-close" id="helpModalClose">閉じる</button>
   </div>
 </div>
 
@@ -1401,6 +1431,45 @@ document.getElementById('retireBeforeA').addEventListener('click', ()=>{
 document.getElementById('retireBeforeB').addEventListener('click', ()=>{
   const p = currentPlayers();
   openConfirm(p.B.join('・') + ' を不戦敗として記録しますか？', ()=>{ retireBeforeStart('B'); });
+});
+
+/* ---------- 使い方モーダル ---------- */
+const HELP_SECTIONS = [
+  { title:'① 基本の使い方', lines:[
+    '選手名・種目・試合形式（1/3ゲームマッチ）・得点（15/21/カスタム）・セッティング（デュース）有無を設定し、「試合開始」を押します。',
+    'コート中央をタップして得点、Undoで取り消し、チェンジエンドで左右入替、中止で試合をやめます。'
+  ]},
+  { title:'② 棄権の記録', lines:[
+    '<b>試合中の棄権</b>：盤面の「棄権」ボタンでどちら側が棄権したかを選ぶと、相手の勝ちとして即座に決着します。',
+    '<b>試合前の不戦敗</b>：設定画面の「A不戦敗で記録」「B不戦敗で記録」で、試合を始めずに結果だけ記録できます。',
+    'いずれもスコアシートに「棄権」の表記が入り、大会Now連携時はリーグ表にも反映されます。'
+  ]},
+  { title:'③ スコアシート', lines:[
+    '試合終了・中止・棄権のいずれでも、公式様式に近いスコアシートが自動作成されます。',
+    '印刷やメールへの貼り付けにも対応しています。'
+  ]},
+  { title:'④ 大会Now連携', lines:[
+    '設定画面の「大会Now連携」欄で大会ID・コート番号を入力して連携するか、大会Nowの設定タブで発行される<b>コートごとの連携リンク（URL・QR）を一度開く</b>だけで自動連携できます。',
+    '連携すると、配信された試合の選手名・種目が自動で反映され、試合終了時の結果も自動で大会Nowへ送られます。',
+    '大会Now側で設定した「試合ルール」（試合形式・得点・デュース）も自動で反映されます（試合中は上書きされません）。',
+    '連携中は、盤面・設定画面にそのタブレットが担当しているコート番号が表示されます。'
+  ]}
+];
+function renderHelpModal(){
+  const wrap = document.getElementById('helpModalScroll');
+  wrap.innerHTML = HELP_SECTIONS.map(sec=>{
+    return `<div class="help-modal-section"><div class="help-modal-section-title">${sec.title}</div><ul class="help-modal-list">${sec.lines.map(l=>`<li>${l}</li>`).join('')}</ul></div>`;
+  }).join('');
+}
+document.getElementById('helpBtn').addEventListener('click', ()=>{
+  renderHelpModal();
+  document.getElementById('helpModalBg').classList.add('active');
+});
+document.getElementById('helpModalClose').addEventListener('click', ()=>{
+  document.getElementById('helpModalBg').classList.remove('active');
+});
+document.getElementById('helpModalBg').addEventListener('click', (e)=>{
+  if(e.target.id === 'helpModalBg') document.getElementById('helpModalBg').classList.remove('active');
 });
 
 /* ---------- 試合状態の初期化 ---------- */
