@@ -116,6 +116,14 @@ html,body{
   align-items:center;
   justify-content:center;
 }
+.plain-score-digits{
+  font-family:monospace;
+  font-weight:800;
+  color:#f5f5f5;
+  line-height:1;
+  letter-spacing:0.02em;
+  text-shadow:0 2px 6px rgba(0,0,0,0.35);
+}
 
 /* ---------- フリップボード風スコアカード ---------- */
 .flip-card{
@@ -409,6 +417,7 @@ select{
 .custom-points-row.show{ display:block; }
 
 .start-btn{
+  display:block;
   width:100%;
   min-height:60px;
   padding:18px 0;
@@ -418,7 +427,7 @@ select{
   border-radius:16px;
   font-size:clamp(19px, 5.5vw, 23px);
   font-weight:800;
-  margin-top:24px;
+  margin:24px auto 0;
   box-shadow:var(--soft-shadow);
 }
 .start-btn:disabled{
@@ -551,7 +560,7 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 /* ---------- 公式様式ヘッダー（期日・大会名等 ＋ 氏名登録表） ---------- */
 .sheet-header-grid{
   display:grid;
-  grid-template-columns:1fr 2fr 1fr;
+  grid-template-columns:minmax(0,1fr) minmax(260px,2fr) minmax(0,1fr);
   grid-template-rows:repeat(4, auto);
   gap:4px 10px;
   margin-bottom:16px;
@@ -564,6 +573,7 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
   border-bottom:1px dashed var(--soft-border);
   padding-bottom:3px;
   color:var(--soft-text);
+  min-width:0; /* グリッド内でnowrapの値が列全体を押し広げてしまうのを防ぐ */
 }
 .sheet-header-grid > .info-line:nth-child(1){ grid-column:1; grid-row:1; }
 .sheet-header-grid > .info-line:nth-child(2){ grid-column:3; grid-row:1; }
@@ -573,8 +583,19 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
 .sheet-header-grid > .info-line:nth-child(6){ grid-column:3; grid-row:3; }
 .sheet-header-grid > .info-line:nth-child(7){ grid-column:1; grid-row:4; }
 .sheet-header-grid > .info-line:nth-child(8){ grid-column:3; grid-row:4; }
-.info-line .lbl{ color:var(--soft-text-dim); white-space:nowrap; }
-.info-line .val{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.info-line .lbl{ color:var(--soft-text-dim); white-space:nowrap; flex-shrink:0; }
+.info-line .val{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+/* 大会名だけは省略せず2行まで折り返して表示する（長い大会名で中央の名前欄が圧迫されないように） */
+.info-line.val-wrap .val{
+  white-space:normal;
+  overflow-wrap:anywhere;
+  text-overflow:clip;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  line-height:1.25;
+}
 
 .name-score-table{
   grid-column:2;
@@ -602,11 +623,14 @@ table.sheet-log th{ color:var(--soft-text-dim); font-weight:600; }
   color:var(--soft-text);
   background:var(--soft-surface);
   width:30%;
+  min-width:6.4em; /* 日本語6文字までは改行されない幅の目安 */
 }
 .name-score-table .mini-score{
   color:var(--soft-text-dim);
   font-weight:600;
   font-size:12px;
+  min-width:5.5ch; /* 「30 － 29」が改行されない幅の目安 */
+  white-space:nowrap;
 }
 .name-score-table .game-count{
   font-weight:800;
@@ -1413,7 +1437,7 @@ function applyTaikaLockUI(){
 function notifyTaikaMatchLive(){
   const ref = taikaCourtRef();
   if(!ref) return;
-  ref.update({ status:'live', live:null }).catch(()=>{});
+  ref.update({ status:'live', live:null, startedAt: Date.now() }).catch(()=>{});
 }
 function notifyTaikaMatchFinished(result){
   const ref = taikaCourtRef();
@@ -1893,20 +1917,14 @@ function renderSlots(container, team){
   });
 }
 
-function renderScoreCards(container, score, cardStyle){
+function renderScoreCards(container, score, style){
+  // 「フリップカード」の見た目をやめ、数字だけをシンプルに大きく表示する
   container.innerHTML = '';
-  const digits = String(score).split('');
-  digits.forEach(ch=>{
-    const card = document.createElement('div');
-    card.className = 'flip-card';
-    if(cardStyle){
-      card.style.height = cardStyle.height;
-      card.style.width = cardStyle.width;
-      card.style.fontSize = cardStyle.fontSize;
-    }
-    card.innerHTML = '<span class="ring l"></span><span class="ring r"></span><span class="digit">' + ch + '</span>';
-    container.appendChild(card);
-  });
+  const num = document.createElement('span');
+  num.className = 'plain-score-digits';
+  num.textContent = String(score);
+  if(style){ num.style.fontSize = style.fontSize; }
+  container.appendChild(num);
 }
 
 function computeCardStyle(leftDigits, rightDigits){
@@ -1914,31 +1932,23 @@ function computeCardStyle(leftDigits, rightDigits){
   const zoneR = document.querySelector('#sideRight .score-zone');
   if(!zoneL || !zoneR) return null;
 
-  const minW = Math.min(zoneL.clientWidth, zoneR.clientWidth) * 0.94; // 左右クリアランス確保のため少し余裕を持たせる
-  const minH = Math.min(zoneL.clientHeight, zoneR.clientHeight);
+  // 横幅・縦幅の両方を使い切れるよう、余白は最小限にする
+  const minW = Math.min(zoneL.clientWidth, zoneR.clientWidth) * 0.96;
+  const minH = Math.min(zoneL.clientHeight, zoneR.clientHeight) * 0.96;
   if(minW <= 0 || minH <= 0) return null;
 
-  // 1桁→2桁で見た目のサイズが変わらないよう、最初から常に2桁分のスペースを確保しておく
+  // 1桁→2桁で見た目のサイズが変わらないよう、最初から常に2桁分の横幅を確保しておく
   // （バドミントンの通常の得点は最大でも2桁のため、これで試合を通して同じ文字サイズを維持できる）
   const maxDigits = Math.max(2, leftDigits, rightDigits);
-  const ASPECT = 0.68;   // width / height
-  const GAP_RATIO = 0.09; // 桁間の隙間 = 高さ * この比率
+  // 太字の等幅数字1文字あたりの実測目安（フォントサイズに対する横幅の比率）
+  const CHAR_WIDTH_RATIO = 0.62;
 
-  // maxDigits枚のカード + 隙間が横幅に収まる高さの上限
-  const widthPerUnitHeight = (maxDigits * ASPECT) + ((maxDigits - 1) * GAP_RATIO);
-  let h = minW / widthPerUnitHeight;
-  h = Math.min(h, minH);
-  h = Math.max(h, 24);
+  // 横幅だけでなく縦幅も最大限に使うため、両方の制約のうち小さい方に合わせて最大化する
+  // （4:3など縦が長い画面でも、横幅だけに引きずられて小さくなり過ぎないようにする）
+  let size = Math.min(minH, minW / (maxDigits * CHAR_WIDTH_RATIO));
+  size = Math.max(size, 24);
 
-  const w = h * ASPECT;
-  const gap = h * GAP_RATIO;
-
-  return {
-    height: h.toFixed(1) + 'px',
-    width: w.toFixed(1) + 'px',
-    fontSize: h.toFixed(1) + 'px',
-    gap: gap.toFixed(1) + 'px'
-  };
+  return { fontSize: size.toFixed(1) + 'px' };
 }
 
 function render(){
@@ -1950,8 +1960,6 @@ function render(){
   const rightScoreStr = String(state.score[rightTeam]);
   const cardStyle = computeCardStyle(leftScoreStr.length, rightScoreStr.length);
 
-  scoreLeftNum.style.gap = cardStyle ? cardStyle.gap : '';
-  scoreRightNum.style.gap = cardStyle ? cardStyle.gap : '';
   renderScoreCards(scoreLeftNum, state.score[leftTeam], cardStyle);
   renderScoreCards(scoreRightNum, state.score[rightTeam], cardStyle);
 
@@ -2125,7 +2133,7 @@ function openScoreSheet(){
   const winnerName = match.overallWinner ? fmtTeamName(match.overallWinner) : null;
   const eventLabel = settings.matchType === 'doubles' ? 'ダブルス' : 'シングルス';
 
-  const infoLine = (label, value)=> `<div class="info-line"><span class="lbl">${label}：</span><span class="val">${value || ''}</span></div>`;
+  const infoLine = (label, value, wrap)=> `<div class="info-line${wrap?' val-wrap':''}"><span class="lbl">${label}：</span><span class="val">${value || ''}</span></div>`;
 
   const gameSummaryRow = (g)=> g ? `<td class="mini-score">${g.score.A} － ${g.score.B}</td>` : `<td class="mini-score">－</td>`;
 
@@ -2140,7 +2148,7 @@ function openScoreSheet(){
     <div class="sheet-header-grid">
       ${infoLine('期日', dateStr)}
       ${infoLine('種目', eventLabel)}
-      ${infoLine('大会名', settings.tournamentName)}
+      ${infoLine('大会名', settings.tournamentName, true)}
       ${infoLine('試合番号', settings.matchNumber)}
       ${infoLine('場所', settings.venueName)}
       ${infoLine('コート番号', settings.courtNumber)}
