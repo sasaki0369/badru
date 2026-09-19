@@ -1141,6 +1141,44 @@ let historyStack = [];
 let suppressRemote = false;
 let remoteApplyTimer = null;
 
+// ブラウザ再読み込み・誤終了から進行中の試合を復元するためのローカル保存
+const ACTIVE_MATCH_STORAGE_KEY = 'badoru_active_match_v1';
+function saveActiveMatchLocal(){
+  try{
+    if(settings && match && state && match.status === 'ongoing'){
+      localStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify({
+        settings, match, state, historyStack, savedAt: Date.now()
+      }));
+    }else{
+      localStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
+    }
+  }catch(e){ console.warn('進行中試合のローカル保存に失敗しました', e); }
+}
+function clearActiveMatchLocal(){
+  try{ localStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY); }catch(e){}
+}
+function restoreActiveMatchLocal(){
+  try{
+    const raw = localStorage.getItem(ACTIVE_MATCH_STORAGE_KEY);
+    if(!raw) return false;
+    const saved = JSON.parse(raw);
+    if(!saved || !saved.settings || !saved.match || !saved.state || saved.match.status !== 'ongoing'){
+      clearActiveMatchLocal();
+      return false;
+    }
+    settings = saved.settings;
+    match = saved.match;
+    state = saved.state;
+    historyStack = Array.isArray(saved.historyStack) ? saved.historyStack : [];
+    showBoard();
+    render();
+    return true;
+  }catch(e){
+    console.warn('進行中試合の復元に失敗しました', e);
+    return false;
+  }
+}
+
 function otherTeam(t){ return t === 'A' ? 'B' : 'A'; }
 
 function partnerOf(team, playerName){
@@ -1916,6 +1954,7 @@ function abortMatch(){
   match.overallWinner = null;
   match.finishedAt = state.finishedAt;
 
+  clearActiveMatchLocal();
   render();
   pushRemote();
   openScoreSheet();
@@ -1937,6 +1976,7 @@ function retireMatch(retiredSide){
   match.retired = true;
   match.retiredSide = retiredSide;
 
+  clearActiveMatchLocal();
   render();
   pushRemote();
   openScoreSheet();
@@ -2316,6 +2356,8 @@ function renderPastMatches(){
 
 /* ---------- Firebase 同期 ---------- */
 function pushRemote(){
+  // Firebaseの接続状態にかかわらず、まず端末内へ保存する
+  saveActiveMatchLocal();
   if(!dbReady || !matchRef) return;
   suppressRemote = true;
   matchRef.set({ deviceId: DEVICE_ID, settings, state, match }).catch(e=>console.warn('sync失敗', e));
@@ -2343,6 +2385,7 @@ function subscribeMatchRef(){
       state = val.state;
       match = val.match;
       historyStack = [];
+      saveActiveMatchLocal();
       showBoard();
       render();
     }catch(e){
@@ -2356,8 +2399,13 @@ subscribeMatchRef();
 window.addEventListener('resize', ()=>{ if(state) render(); });
 window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ if(state) render(); }, 200); });
 
+/* ---------- 再読み込み・タブ終了直前にも最新状態を保存 ---------- */
+window.addEventListener('pagehide', saveActiveMatchLocal);
+window.addEventListener('beforeunload', saveActiveMatchLocal);
+
 /* ---------- 初期表示 ---------- */
-showSettings();
+// 進行中データが端末内に残っていれば盤面を即時復元。なければ通常の設定画面へ。
+if(!restoreActiveMatchLocal()) showSettings();
 </script>
 </body>
 </html>
