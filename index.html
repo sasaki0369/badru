@@ -289,6 +289,20 @@ html,body{
 .help-modal-list b{opacity:1}
 .help-modal-close{margin-top:14px;width:100%;padding:12px 0;border:none;border-radius:12px;background:var(--accent,#d63800);color:#fff;font-size:15px;font-weight:700}
 
+/* 大会Now連携中は、選手名の左右入替・ファーストサーバー/レシーバー選択・試合開始以外を非表示にする */
+#settings.taika-locked .field-type,
+#settings.taika-locked .field-format,
+#settings.taika-locked .field-points,
+#settings.taika-locked .field-deuce,
+#settings.taika-locked .field-tournament-info,
+#settings.taika-locked .taika-link-inputs{
+  display:none;
+}
+#settings.taika-locked .field-names input[type="text"]{
+  background:var(--soft-surface-dim, #f0eee9);
+  color:var(--soft-text-dim);
+}
+
 .field{
   margin-bottom:22px;
 }
@@ -780,7 +794,7 @@ table.score-grid td.filled.team-b{
       <button type="button" id="helpBtn" class="help-btn">?</button>
     </div>
 
-    <div class="field">
+    <div class="field field-type">
       <label>種目</label>
       <div class="seg" id="segType">
         <button data-v="singles">シングルス</button>
@@ -788,7 +802,7 @@ table.score-grid td.filled.team-b{
       </div>
     </div>
 
-    <div class="field">
+    <div class="field field-format">
       <label>試合形式</label>
       <div class="seg" id="segFormat">
         <button data-v="single">1ゲームマッチ</button>
@@ -797,7 +811,7 @@ table.score-grid td.filled.team-b{
       <div class="hint">3ゲームマッチは2ゲーム先取で勝利。各ゲーム後にエンドを交代し、最終（3）ゲームは先に目標点の半分に達した側でエンドを交代します。</div>
     </div>
 
-    <div class="field">
+    <div class="field field-points">
       <label>ゲームポイント</label>
       <div class="seg" id="segPoints">
         <button data-v="21">21点</button>
@@ -809,7 +823,7 @@ table.score-grid td.filled.team-b{
       </div>
     </div>
 
-    <div class="field">
+    <div class="field field-deuce">
       <label>セッティング（デュース）</label>
       <div class="seg" id="segDeuce">
         <button data-v="on" class="on">あり</button>
@@ -822,7 +836,7 @@ table.score-grid td.filled.team-b{
       </div>
     </div>
 
-    <div class="field">
+    <div class="field field-names">
       <label>選手名</label>
       <div class="two-col-swap">
         <div class="team-block">
@@ -840,17 +854,17 @@ table.score-grid td.filled.team-b{
       <div class="hint">LEFTが試合開始時に画面の左に表示されます。中央のボタンで入れ替えられます。</div>
     </div>
 
-    <div class="field">
+    <div class="field field-first-server">
       <label>ファーストサーバー</label>
       <select id="firstServer"></select>
     </div>
 
-    <div class="field">
+    <div class="field field-first-receiver">
       <label>ファーストレシーバー</label>
       <select id="firstReceiver"></select>
     </div>
 
-    <div class="field">
+    <div class="field field-tournament-info">
       <label>大会情報（スコアシート用・任意入力）</label>
       <div class="two-col">
         <input type="text" id="tournamentName" placeholder="大会名">
@@ -862,9 +876,9 @@ table.score-grid td.filled.team-b{
       </div>
     </div>
 
-    <div class="field">
+    <div class="field field-taika-link">
       <label>大会Now連携</label>
-      <div class="team-block">
+      <div class="team-block taika-link-inputs">
         <div class="two-col">
           <input type="text" id="taikaEventId" placeholder="大会ID">
           <input type="number" id="taikaCourtNo" placeholder="コート番号" min="1">
@@ -873,16 +887,12 @@ table.score-grid td.filled.team-b{
           <button type="button" data-v="off" class="on">連携しない</button>
           <button type="button" data-v="on">連携する</button>
         </div>
-        <div class="hint" id="taikaStatusHint">連携すると、大会Nowから配信された次の試合が自動的に反映されます。</div>
       </div>
+      <div class="hint" id="taikaStatusHint">連携すると、大会Nowから配信された次の試合が自動的に反映されます。</div>
     </div>
 
     <div class="err" id="settingsErr"></div>
     <button class="start-btn" id="startBtn">試合開始</button>
-    <div class="row" style="margin-top:1vh; gap:1.5vw;">
-      <button type="button" class="cancel" id="retireBeforeA" style="flex:1; font-size:min(2.6vw,2.2vh); padding:1.2vh 0;">A不戦敗で記録</button>
-      <button type="button" class="cancel" id="retireBeforeB" style="flex:1; font-size:min(2.6vw,2.2vh); padding:1.2vh 0;">B不戦敗で記録</button>
-    </div>
 
     <div class="past-matches" id="pastMatchesWrap" style="display:none;">
       <h3>過去の試合</h3>
@@ -1376,6 +1386,7 @@ function startTaikaListener(){
 }
 function reapplyTaikaLink(){
   applyTaikaLinkToMatchRef();
+  applyTaikaLockUI();
   if(taikaLink && taikaLink.enabled){
     startTaikaListener();
     // コート番号はスコアシート用の「コート番号」欄にも即座に反映する
@@ -1387,6 +1398,17 @@ function reapplyTaikaLink(){
     stopTaikaListener();
     renderTaikaStatusHint(null);
   }
+}
+function applyTaikaLockUI(){
+  // 大会Now連携中は、選手名の左右入替・ファーストサーバー/レシーバー選択・試合開始以外を
+  // 操作できないようにする（選手名欄自体は表示するが読み取り専用にする）
+  const locked = !!(taikaLink && taikaLink.enabled);
+  const settingsDiv = document.getElementById('settings'); // settingsEl定義前にも呼ばれるためTDZ回避で直接取得
+  if(settingsDiv) settingsDiv.classList.toggle('taika-locked', locked);
+  ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
+    const inp = document.getElementById(id);
+    if(inp) inp.readOnly = locked;
+  });
 }
 function notifyTaikaMatchLive(){
   const ref = taikaCourtRef();
@@ -1493,15 +1515,6 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 
   startNewMatch();
   notifyTaikaMatchLive();
-});
-
-document.getElementById('retireBeforeA').addEventListener('click', ()=>{
-  const p = currentPlayers();
-  openConfirm(p.A.join('・') + ' を不戦敗として記録しますか？', ()=>{ retireBeforeStart('A'); });
-});
-document.getElementById('retireBeforeB').addEventListener('click', ()=>{
-  const p = currentPlayers();
-  openConfirm(p.B.join('・') + ' を不戦敗として記録しますか？', ()=>{ retireBeforeStart('B'); });
 });
 
 /* ---------- 使い方モーダル ---------- */
@@ -1822,48 +1835,6 @@ function retireMatch(retiredSide){
   match.retired = true;
   match.retiredSide = retiredSide;
 
-  render();
-  pushRemote();
-  openScoreSheet();
-}
-
-function retireBeforeStart(retiredSide){
-  // 試合開始前（欠場・出場辞退）の不戦勝/不戦敗を記録する
-  const players = currentPlayers();
-  const winnerSide = retiredSide === 'A' ? 'B' : 'A';
-
-  settings = {
-    matchType: curType,
-    matchFormat: curFormat,
-    pointsTarget: curPoints === 'custom' ? (parseInt(customPoints.value,10)||15) : curPoints,
-    deuce: curDeuce,
-    deuceMax: curDeuce ? (parseInt(deuceMax.value,10)||21) : (curPoints==='custom'?(parseInt(customPoints.value,10)||15):curPoints),
-    players,
-    firstServer: players.A[0],
-    firstReceiver: players.B[0]
-  };
-  match = {
-    format: settings.matchFormat,
-    gamesToWin: settings.matchFormat === 'best3' ? 2 : 1,
-    games: [],
-    gameWins: { A: winnerSide==='A' ? (settings.matchFormat==='best3'?2:1) : 0, B: winnerSide==='B' ? (settings.matchFormat==='best3'?2:1) : 0 },
-    status: 'finished',
-    overallWinner: winnerSide,
-    startedAt: Date.now(),
-    finishedAt: Date.now(),
-    retired: true,
-    retiredSide: retiredSide
-  };
-  state = {
-    gameNumber: 1, rev: 1, score: { A:0, B:0 }, serverTeam: winnerSide,
-    positions: { A:{right:null,left:null}, B:{right:null,left:null} },
-    leftTeam: 'A', pointLog: [], status: 'finished', winner: winnerSide,
-    midGameEndsSwapped: false, finishedAt: Date.now()
-  };
-  historyStack = [];
-
-  boardEl.classList.add('active');
-  settingsEl.classList.remove('active');
   render();
   pushRemote();
   openScoreSheet();
