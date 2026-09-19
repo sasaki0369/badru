@@ -1119,7 +1119,7 @@ function applyTaikaLinkToMatchRef(){
   // 複数コートが同時進行してもスコアが混線しないようにする
   if(!dbReady || !db) return;
   if(taikaLink && taikaLink.enabled && taikaLink.eventId && taikaLink.courtNo){
-    matchRef = db.ref('badoru/courts/' + taikaLink.courtNo + '/currentMatch');
+    matchRef = db.ref('badoru/events/' + taikaLink.eventId + '/courts/' + taikaLink.courtNo + '/currentMatch');
   }else{
     matchRef = db.ref('badoru/currentMatch');
   }
@@ -1133,6 +1133,102 @@ function applyTaikaLinkToMatchRef(){
    状態管理
 ============================================================ */
 const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
+
+// 同一イベント・同一コートの操作権管理（1コート=1操作端末）
+const COURT_LOCK_STALE_MS = 30000;
+let courtLockRef = null;
+let courtLockHeartbeat = null;
+let courtLockOwned = false;
+let courtLockOwner = null;
+
+function ensureCourtLockOverlay(){
+  let ov = document.getElementById('courtLockOverlay');
+  if(ov) return ov;
+  ov = document.createElement('div');
+  ov.id = 'courtLockOverlay';
+  ov.style.cssText = 'display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.86);color:#fff;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:system-ui,-apple-system,sans-serif';
+  ov.innerHTML = '<div style="max-width:560px;background:#171717;border:1px solid #444;border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.5)"><div style="font-size:24px;font-weight:800;margin-bottom:12px">このコートは別の端末で使用中です</div><div id="courtLockMsg" style="font-size:15px;line-height:1.7;color:#ccc;margin-bottom:20px">この端末は閲覧専用です。</div><button id="courtLockTakeover" style="border:0;border-radius:999px;padding:13px 22px;font-size:16px;font-weight:800;background:#ffcc00;color:#111;cursor:pointer">この端末に操作権を移す</button></div>';
+  document.body.appendChild(ov);
+  document.getElementById('courtLockTakeover').addEventListener('click', takeOverCourtLock);
+  return ov;
+}
+function ensureSpectatorBadge(){
+  let badge = document.getElementById('spectatorBadge');
+  if(badge) return badge;
+  badge = document.createElement('div');
+  badge.id = 'spectatorBadge';
+  badge.style.cssText = 'display:none;position:fixed;left:14px;top:14px;z-index:99999;background:rgba(25,25,25,.88);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:8px 12px;font:700 13px/1 system-ui,-apple-system,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.28);backdrop-filter:blur(6px);align-items:center;gap:9px;pointer-events:auto';
+  badge.innerHTML = '<span>観戦モード</span><button id="spectatorTakeover" style="border:0;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;background:#ffcc00;color:#111;cursor:pointer">操作権を移す</button>';
+  document.body.appendChild(badge);
+  document.getElementById('spectatorTakeover').addEventListener('click', takeOverCourtLock);
+  return badge;
+}
+function setCourtReadOnly(readOnly, owner){
+  courtLockOwned = !readOnly;
+  courtLockOwner = owner || null;
+  // 2台目は画面を覆わず、自動的にリアルタイム観戦モードにする。
+  const ov = ensureCourtLockOverlay();
+  ov.style.display = 'none';
+  const badge = ensureSpectatorBadge();
+  badge.style.display = readOnly ? 'flex' : 'none';
+  const startBtn = document.getElementById('startBtn');
+  if(startBtn && taikaLink && taikaLink.enabled) startBtn.disabled = readOnly;
+}
+function courtLockPathRef(){
+  if(!dbReady || !db || !taikaLink || !taikaLink.enabled || !taikaLink.eventId || !taikaLink.courtNo) return null;
+  return db.ref('taikainow/' + taikaLink.eventId + '/courtLocks/' + taikaLink.courtNo);
+}
+function stopCourtLock(){
+  if(courtLockHeartbeat){ clearInterval(courtLockHeartbeat); courtLockHeartbeat=null; }
+  if(courtLockRef){ try{ courtLockRef.off('value'); }catch(e){} }
+  courtLockRef=null; courtLockOwned=false; courtLockOwner=null;
+  const ov=document.getElementById('courtLockOverlay'); if(ov) ov.style.display='none';
+  const badge=document.getElementById('spectatorBadge'); if(badge) badge.style.display='none';
+}
+function startCourtLock(){
+  stopCourtLock();
+  const ref = courtLockPathRef();
+  if(!ref) return;
+  courtLockRef = ref;
+  const now = Date.now();
+  ref.transaction(cur=>{
+    if(!cur || cur.deviceId===DEVICE_ID || !cur.heartbeatAt || now-cur.heartbeatAt>COURT_LOCK_STALE_MS){
+      return {deviceId:DEVICE_ID, acquiredAt:(cur&&cur.deviceId===DEVICE_ID&&cur.acquiredAt)||now, heartbeatAt:now};
+    }
+    return;
+  }, (err, committed, snap)=>{
+    if(err) return;
+    const val=snap&&snap.val();
+    setCourtReadOnly(!(committed && val && val.deviceId===DEVICE_ID), val);
+    if(committed && val && val.deviceId===DEVICE_ID){
+      try{ ref.onDisconnect().remove(); }catch(e){}
+    }
+  });
+  ref.on('value', snap=>{
+    const val=snap.val();
+    const stale = val && val.heartbeatAt && Date.now()-val.heartbeatAt>COURT_LOCK_STALE_MS;
+    if(!val || stale){
+      if(!courtLockOwned) startCourtLock();
+      return;
+    }
+    setCourtReadOnly(val.deviceId!==DEVICE_ID, val);
+  });
+  courtLockHeartbeat=setInterval(()=>{
+    if(courtLockOwned && courtLockRef){ courtLockRef.update({heartbeatAt:Date.now()}).catch(()=>{}); }
+  },10000);
+}
+function takeOverCourtLock(){
+  const ref=courtLockPathRef(); if(!ref) return;
+  const now=Date.now();
+  ref.set({deviceId:DEVICE_ID, acquiredAt:now, heartbeatAt:now}).then(()=>{
+    try{ ref.onDisconnect().remove(); }catch(e){}
+    setCourtReadOnly(false, {deviceId:DEVICE_ID});
+  }).catch(()=>{});
+}
+function hasCourtOperationRight(){
+  return !(taikaLink && taikaLink.enabled) || courtLockOwned;
+}
+
 
 let settings = null;
 let match = null;      // 複数ゲームの進行管理
@@ -1511,6 +1607,7 @@ function reapplyTaikaLink(){
   applyTaikaLockUI();
   if(taikaLink && taikaLink.enabled){
     startTaikaListener();
+    startCourtLock();
     // コート番号はスコアシート用の「コート番号」欄にも即座に反映する
     if(taikaLink.courtNo){
       const courtNumberInp = document.getElementById('courtNumber');
@@ -1518,6 +1615,7 @@ function reapplyTaikaLink(){
     }
   }else{
     stopTaikaListener();
+    stopCourtLock();
     renderTaikaStatusHint(null);
   }
 }
@@ -1615,6 +1713,7 @@ reapplyTaikaLink();
 
 refreshPlayerSelects();
 document.getElementById('startBtn').addEventListener('click', ()=>{
+  if(!hasCourtOperationRight()) return;
   settingsErr.textContent = '';
   const players = currentPlayers();
 
@@ -2104,24 +2203,28 @@ function render(){
 
 /* ---------- タップ操作 ---------- */
 sideLeftEl.addEventListener('click', ()=>{
+  if(!hasCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
   awardPoint(state.leftTeam);
 });
 sideRightEl.addEventListener('click', ()=>{
+  if(!hasCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
   awardPoint(otherTeam(state.leftTeam));
 });
 
-document.getElementById('undoBtn').addEventListener('click', undoLast);
-document.getElementById('changeEndBtn').addEventListener('click', changeEnd);
+document.getElementById('undoBtn').addEventListener('click', ()=>{ if(hasCourtOperationRight()) undoLast(); });
+document.getElementById('changeEndBtn').addEventListener('click', ()=>{ if(hasCourtOperationRight()) changeEnd(); });
 
 document.getElementById('stopBtn').addEventListener('click', ()=>{
+  if(!hasCourtOperationRight()) return;
   openConfirm('試合を中止しますか？', ()=>{
     abortMatch();
   });
 });
 
 document.getElementById('retireBtn').addEventListener('click', ()=>{
+  if(!hasCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
   document.getElementById('retireA').textContent = fmtTeamName('A') + ' が棄権';
   document.getElementById('retireB').textContent = fmtTeamName('B') + ' が棄権';
@@ -2356,6 +2459,7 @@ function renderPastMatches(){
 
 /* ---------- Firebase 同期 ---------- */
 function pushRemote(){
+  if(taikaLink && taikaLink.enabled && !hasCourtOperationRight()) return;
   // Firebaseの接続状態にかかわらず、まず端末内へ保存する
   saveActiveMatchLocal();
   if(!dbReady || !matchRef) return;
