@@ -1652,17 +1652,42 @@ function notifyTaikaMatchLive(){
   if(!ref) return;
   ref.update({ status:'live', live:null, startedAt: Date.now(), updatedAt: Date.now() }).catch(()=>{});
 }
+function calcOfficialRetirementPoints(){
+  // 棄権時の公式スコア：実際に取得済みの得点は残し、未取得分は勝者側が取得したものとして補完する。
+  // 例 21-18, 17-10でA棄権 → 21-18, 17-21, 0-21（21点制の場合）
+  if(!match || !match.retired) return null;
+  const winner = match.retiredSide === 'A' ? 'B' : 'A';
+  const target = Number(settings.pointsTarget) || 21;
+  const gamesToWin = match.gamesToWin || 1;
+  const games = (match.games || []).map(g=>({A:Number(g.score.A)||0, B:Number(g.score.B)||0}));
+  if(games.length){
+    const last = games[games.length-1];
+    // 棄権が発生したゲームは、勝者がそのゲームの目標点まで取得したものとする。
+    if(last[winner] < target) last[winner] = target;
+  }
+  let winnerGames = games.filter(g=>g[winner] > g[otherTeam(winner)]).length;
+  while(winnerGames < gamesToWin){
+    const g={A:0,B:0}; g[winner]=target; games.push(g); winnerGames++;
+  }
+  return {
+    games,
+    pointsA: games.reduce((sum,g)=>sum+g.A,0),
+    pointsB: games.reduce((sum,g)=>sum+g.B,0)
+  };
+}
+
 function notifyTaikaMatchFinished(result){
   const ref = taikaCourtRef();
   if(!ref) return;
   lastTaikaMatchId = null;
-  const pointsA = (match && match.games) ? match.games.reduce((s,g)=>s+g.score.A, 0) : 0;
-  const pointsB = (match && match.games) ? match.games.reduce((s,g)=>s+g.score.B, 0) : 0;
+  const retirementOfficial = calcOfficialRetirementPoints();
+  const pointsA = retirementOfficial ? retirementOfficial.pointsA : ((match && match.games) ? match.games.reduce((s,g)=>s+g.score.A, 0) : 0);
+  const pointsB = retirementOfficial ? retirementOfficial.pointsB : ((match && match.games) ? match.games.reduce((s,g)=>s+g.score.B, 0) : 0);
   const assignedMatch = (taikaCourtData && taikaCourtData.match) ? taikaCourtData.match : null;
   const refInfo = assignedMatch
     ? { refType: assignedMatch.refType || null, refId: assignedMatch.refId || null, refMatchIndex: (assignedMatch.refMatchIndex !== undefined ? assignedMatch.refMatchIndex : null) }
     : { refType: null, refId: null, refMatchIndex: null };
-  const payload = Object.assign({ pointsA, pointsB }, result, refInfo);
+  const payload = Object.assign({ pointsA, pointsB, officialGames: retirementOfficial ? retirementOfficial.games : null }, result, refInfo);
   ref.update({ status:'idle', match:null, live:null, lastResult: payload, updatedAt: Date.now() }).catch(()=>{});
 }
 function mirrorTaikaLiveScore(){
@@ -2196,7 +2221,7 @@ function render(){
   }
   if(setStatus){
     setStatus.textContent = match.format === 'best3'
-      ? `${fmtTeamName('A')} ${match.gameWins.A} - ${match.gameWins.B} ${fmtTeamName('B')}`
+      ? `${match.gameWins[leftTeam]} - ${match.gameWins[rightTeam]}`
       : '';
   }
 }
