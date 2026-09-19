@@ -212,19 +212,28 @@ html,body{
 .game-target-badge{
   position:absolute;
   top:1.2vh;
-  left:50%;
-  transform:translateX(-50%);
+  left:1.5vw;
+  transform:none;
+  max-width:24%;
   font-size:min(2.6vw,2.4vh);
   color:var(--dim);
   letter-spacing:0.05em;
+  white-space:nowrap;
 }
 
 .set-status{
   position:absolute;
   top:1.2vh;
-  right:1.5vw;
+  left:50%;
+  right:auto;
+  transform:translateX(-50%);
+  max-width:48%;
   font-size:min(2.4vw,2.2vh);
   color:var(--dim);
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 /* ---------- 下部ボタン行 ---------- */
@@ -959,7 +968,6 @@ table.score-grid td.filled.team-b{
   <!-- スコアボード画面（横画面固定） -->
   <div class="rotor">
   <div id="board">
-    <button class="gear-btn" id="gearBtn">⚙</button>
     <div class="court-badge court-badge-board" id="courtBadgeBoard" style="display:none;"></div>
     <div class="game-target-badge" id="gameBadge"></div>
     <div class="set-status" id="setStatus"></div>
@@ -2045,12 +2053,11 @@ function render(){
   const gameBadge = document.getElementById('gameBadge');
   const setStatus = document.getElementById('setStatus');
   if(gameBadge){
-    const courtPrefix = (taikaLink && taikaLink.enabled && taikaLink.courtNo) ? `コート${taikaLink.courtNo}　・　` : '';
-    gameBadge.textContent = `${courtPrefix}第${state.gameNumber}ゲーム　${settings.pointsTarget}点先取`;
+    gameBadge.textContent = `第${state.gameNumber}ゲーム`;
   }
   if(setStatus){
     setStatus.textContent = match.format === 'best3'
-      ? `ゲームカウント ${fmtTeamName('A')} ${match.gameWins.A} - ${match.gameWins.B} ${fmtTeamName('B')}`
+      ? `${fmtTeamName('A')} ${match.gameWins.A} - ${match.gameWins.B} ${fmtTeamName('B')}`
       : '';
   }
 }
@@ -2067,16 +2074,6 @@ sideRightEl.addEventListener('click', ()=>{
 
 document.getElementById('undoBtn').addEventListener('click', undoLast);
 document.getElementById('changeEndBtn').addEventListener('click', changeEnd);
-
-document.getElementById('gearBtn').addEventListener('click', ()=>{
-  if(state && state.status === 'ongoing'){
-    openConfirm('設定画面に戻りますか？（現在の試合は中止されます）', ()=>{
-      abortMatch();
-    });
-  }else{
-    showSettings();
-  }
-});
 
 document.getElementById('stopBtn').addEventListener('click', ()=>{
   openConfirm('試合を中止しますか？', ()=>{
