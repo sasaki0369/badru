@@ -1302,6 +1302,12 @@ function stopTaikaListener(){
 /* ══ 簡易自動配信（大会Now管理画面が開かれていなくても、コートが空いたら次の試合を入れるための最低限のロジック） ══
    リーグ・ブラケットの解決は行わず、「同じ選手が同時に複数コートへ出ない」ことだけを守って
    キューの先頭から空いたコートへ割り当てる。大会Now側のcomputeDispatch内のassignIdleCourtsと同じ考え方。 */
+function liteTimeToMinutes(t){
+  if(!t) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t).trim());
+  if(!m) return null;
+  return parseInt(m[1],10)*60 + parseInt(m[2],10);
+}
 function liteAssignIdleCourts(data){
   const courtCount = data.courtCount || 0;
   const queue = (data.queue || []).slice();
@@ -1314,21 +1320,34 @@ function liteAssignIdleCourts(data){
       (c.match.teamA||[]).concat(c.match.teamB||[]).forEach(n=>{ if(n) playing[n]=true; });
     }
   });
+  // 大会Now本体のassignIdleCourtsと同じく、格納順ではなく「予測時刻の早い順」で候補を探す
+  function sortedView(){
+    return queue.slice().sort((a,b)=>{
+      const ma=liteTimeToMinutes(a.time), mb=liteTimeToMinutes(b.time);
+      if(ma===null && mb===null) return 0;
+      if(ma===null) return 1;
+      if(mb===null) return -1;
+      return ma-mb;
+    });
+  }
   for(let i=1;i<=courtCount;i++){
     const key = String(i);
     const court = courts[key] || {status:'idle', match:null, live:null, lastResult:null};
     if(court.status !== 'idle' || queue.length===0) continue;
-    let pickIdx = -1;
-    for(let qi=0; qi<queue.length; qi++){
-      const names = (queue[qi].teamA||[]).concat(queue[qi].teamB||[]);
+    const view = sortedView();
+    let picked = null;
+    for(let qi=0; qi<view.length; qi++){
+      const names = (view[qi].teamA||[]).concat(view[qi].teamB||[]);
       const conflict = names.some(n=> n && playing[n]);
-      if(!conflict){ pickIdx = qi; break; }
+      if(!conflict){ picked = view[qi]; break; }
     }
-    if(pickIdx === -1) continue;
-    const next = queue.splice(pickIdx,1)[0];
-    courts[key] = Object.assign({}, court, {status:'assigned', match:next, live:null, assignedAt: Date.now()});
+    if(!picked) continue;
+    const idx = queue.indexOf(picked);
+    if(idx === -1) continue;
+    queue.splice(idx,1);
+    courts[key] = Object.assign({}, court, {status:'assigned', match:picked, live:null, assignedAt: Date.now()});
     changed = true;
-    (next.teamA||[]).concat(next.teamB||[]).forEach(n=>{ if(n) playing[n]=true; });
+    (picked.teamA||[]).concat(picked.teamB||[]).forEach(n=>{ if(n) playing[n]=true; });
   }
   if(!changed) return data;
   return Object.assign({}, data, {queue, courts});
@@ -1549,8 +1568,9 @@ const HELP_SECTIONS = [
   ]},
   { title:'② 棄権の記録', lines:[
     '<b>試合中の棄権</b>：盤面の「棄権」ボタンでどちら側が棄権したかを選ぶと、相手の勝ちとして即座に決着します。',
-    '<b>試合前の不戦敗</b>：設定画面の「A不戦敗で記録」「B不戦敗で記録」で、試合を始めずに結果だけ記録できます。',
-    'いずれもスコアシートに「棄権」の表記が入り、大会Now連携時はリーグ表にも反映されます。'
+    '棄権した選手は、大会Nowと連携している場合、以後の未実施の試合もすべて自動的に不戦敗になります。',
+    '試合を始める前の欠場・不戦敗の登録は、大会Now側の「設定」タブから行います。',
+    'スコアシートには「棄権」の表記が入り、大会Now連携時はリーグ表にも反映されます。'
   ]},
   { title:'③ スコアシート', lines:[
     '試合終了・中止・棄権のいずれでも、公式様式に近いスコアシートが自動作成されます。',
