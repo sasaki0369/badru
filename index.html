@@ -1437,7 +1437,7 @@ function applyTaikaLockUI(){
 function notifyTaikaMatchLive(){
   const ref = taikaCourtRef();
   if(!ref) return;
-  ref.update({ status:'live', live:null, startedAt: Date.now() }).catch(()=>{});
+  ref.update({ status:'live', live:null }).catch(()=>{});
 }
 function notifyTaikaMatchFinished(result){
   const ref = taikaCourtRef();
