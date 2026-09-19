@@ -1306,6 +1306,15 @@ function watchTaikaEventForLiteDispatch(){
   ref.on('value', snap=>{
     const data = snap.val();
     if(!data) return;
+    // 大会名・会場をスコアシート用の欄にも自動反映する（連携中は常に同期）
+    if(data.eventName){
+      const tournamentNameInp = document.getElementById('tournamentName');
+      if(tournamentNameInp) tournamentNameInp.value = data.eventName;
+    }
+    if(data.venueName){
+      const venueNameInp = document.getElementById('venueName');
+      if(venueNameInp) venueNameInp.value = data.venueName;
+    }
     const next = liteAssignIdleCourts(data);
     if(next !== data){
       ref.transaction(cur=>{
@@ -1369,6 +1378,11 @@ function reapplyTaikaLink(){
   applyTaikaLinkToMatchRef();
   if(taikaLink && taikaLink.enabled){
     startTaikaListener();
+    // コート番号はスコアシート用の「コート番号」欄にも即座に反映する
+    if(taikaLink.courtNo){
+      const courtNumberInp = document.getElementById('courtNumber');
+      if(courtNumberInp) courtNumberInp.value = taikaLink.courtNo;
+    }
   }else{
     stopTaikaListener();
     renderTaikaStatusHint(null);
