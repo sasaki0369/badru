@@ -1025,6 +1025,7 @@ try{
 }catch(e){}
 let taikaCourtListenerRef = null;
 let taikaRulesListenerRef = null;
+let taikaEventListenerRef = null; // 簡易自動配信用（大会全体を監視）
 let taikaCourtData = null; // 直近取得したコート状態のキャッシュ
 let matchRefListenerTarget = null; // subscribeMatchRef()より前に宣言（TDZ回避）
 
@@ -1258,6 +1259,61 @@ function stopTaikaListener(){
     try{ taikaRulesListenerRef.off('value'); }catch(e){}
     taikaRulesListenerRef = null;
   }
+  if(taikaEventListenerRef){
+    try{ taikaEventListenerRef.off('value'); }catch(e){}
+    taikaEventListenerRef = null;
+  }
+}
+
+/* ══ 簡易自動配信（大会Now管理画面が開かれていなくても、コートが空いたら次の試合を入れるための最低限のロジック） ══
+   リーグ・ブラケットの解決は行わず、「同じ選手が同時に複数コートへ出ない」ことだけを守って
+   キューの先頭から空いたコートへ割り当てる。大会Now側のcomputeDispatch内のassignIdleCourtsと同じ考え方。 */
+function liteAssignIdleCourts(data){
+  const courtCount = data.courtCount || 0;
+  const queue = (data.queue || []).slice();
+  const courts = Object.assign({}, data.courts || {});
+  let changed = false;
+  const playing = {};
+  Object.keys(courts).forEach(cno=>{
+    const c = courts[cno];
+    if(c && c.match && (c.status==='assigned' || c.status==='live')){
+      (c.match.teamA||[]).concat(c.match.teamB||[]).forEach(n=>{ if(n) playing[n]=true; });
+    }
+  });
+  for(let i=1;i<=courtCount;i++){
+    const key = String(i);
+    const court = courts[key] || {status:'idle', match:null, live:null, lastResult:null};
+    if(court.status !== 'idle' || queue.length===0) continue;
+    let pickIdx = -1;
+    for(let qi=0; qi<queue.length; qi++){
+      const names = (queue[qi].teamA||[]).concat(queue[qi].teamB||[]);
+      const conflict = names.some(n=> n && playing[n]);
+      if(!conflict){ pickIdx = qi; break; }
+    }
+    if(pickIdx === -1) continue;
+    const next = queue.splice(pickIdx,1)[0];
+    courts[key] = Object.assign({}, court, {status:'assigned', match:next, live:null, assignedAt: Date.now()});
+    changed = true;
+    (next.teamA||[]).concat(next.teamB||[]).forEach(n=>{ if(n) playing[n]=true; });
+  }
+  if(!changed) return data;
+  return Object.assign({}, data, {queue, courts});
+}
+function watchTaikaEventForLiteDispatch(){
+  if(!dbReady || !db || !taikaLink || !taikaLink.enabled || !taikaLink.eventId) return;
+  const ref = db.ref('taikainow/' + taikaLink.eventId);
+  taikaEventListenerRef = ref;
+  ref.on('value', snap=>{
+    const data = snap.val();
+    if(!data) return;
+    const next = liteAssignIdleCourts(data);
+    if(next !== data){
+      ref.transaction(cur=>{
+        if(!cur) return cur;
+        return liteAssignIdleCourts(cur);
+      });
+    }
+  });
 }
 function applyTaikaRulesToForm(rules){
   if(!rules) return;
@@ -1307,6 +1363,7 @@ function startTaikaListener(){
       applyTaikaRulesToForm(snap.val());
     });
   }
+  watchTaikaEventForLiteDispatch();
 }
 function reapplyTaikaLink(){
   applyTaikaLinkToMatchRef();
@@ -1876,7 +1933,9 @@ function computeCardStyle(leftDigits, rightDigits){
   const minH = Math.min(zoneL.clientHeight, zoneR.clientHeight);
   if(minW <= 0 || minH <= 0) return null;
 
-  const maxDigits = Math.max(1, leftDigits, rightDigits);
+  // 1桁→2桁で見た目のサイズが変わらないよう、最初から常に2桁分のスペースを確保しておく
+  // （バドミントンの通常の得点は最大でも2桁のため、これで試合を通して同じ文字サイズを維持できる）
+  const maxDigits = Math.max(2, leftDigits, rightDigits);
   const ASPECT = 0.68;   // width / height
   const GAP_RATIO = 0.09; // 桁間の隙間 = 高さ * この比率
 
