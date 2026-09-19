@@ -845,6 +845,24 @@ table.score-grid td.filled.team-b{
 }
 .confirm-box .cancel{ background:var(--soft-surface); color:var(--soft-text); border:1px solid var(--soft-border); }
 .confirm-box .ok{ background:linear-gradient(135deg, var(--soft-danger), var(--soft-danger-dark)); color:#fff; }
+
+/* 棄権選択：長い選手名でもボタン内に十分な左右余白を確保 */
+#retireOverlay .confirm-box{
+  width:min(96vw, 760px);
+  max-width:96vw;
+  padding:3.5vh clamp(22px, 5vw, 44px);
+  box-sizing:border-box;
+}
+#retireOverlay .row{ width:100%; }
+#retireOverlay button{
+  width:100% !important;
+  box-sizing:border-box;
+  padding:2vh clamp(24px, 6vw, 52px);
+  font-size:clamp(20px, 3.6vw, 32px);
+  line-height:1.35;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
 </style>
 
 </head>
