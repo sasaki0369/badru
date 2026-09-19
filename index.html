@@ -117,11 +117,12 @@ html,body{
   justify-content:center;
 }
 .plain-score-digits{
-  font-family:monospace;
-  font-weight:800;
-  color:#f5f5f5;
-  line-height:1;
-  letter-spacing:0.02em;
+  font-family:"DIN Alternate","Roboto Condensed","Arial Narrow",Arial,sans-serif;
+  font-weight:900;
+  font-variant-numeric:tabular-nums lining-nums;
+  color:#f8f8f8;
+  line-height:0.92;
+  letter-spacing:-0.035em;
   text-shadow:0 2px 6px rgba(0,0,0,0.35);
 }
 
@@ -280,6 +281,36 @@ html,body{
 .settings-title .shuttle{ font-size:1.1em; }
 .settings-title-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .settings-title-row .settings-title{ margin:4px 0 22px; }
+.court-badge{
+  font-weight:800;
+  color:#fff;
+  background:linear-gradient(135deg, var(--soft-primary), var(--soft-primary-dark));
+  border-radius:999px;
+  letter-spacing:0.03em;
+  box-shadow:0 4px 10px rgba(0,0,0,0.25);
+  z-index:20;
+  white-space:nowrap;
+}
+.court-badge-settings{
+  position:fixed;
+  top:14px;
+  right:14px;
+  padding:8px 16px;
+  font-size:clamp(14px, 4vw, 17px);
+}
+.court-badge-board{
+  position:absolute;
+  top:1vh;
+  right:1.2vw;
+  left:auto;
+  transform:none;
+  padding:0.65vh 1.7vw;
+  font-size:min(3.4vw, 2.8vh);
+  background:var(--yellow);
+  color:#111;
+  border:2px solid rgba(255,255,255,.9);
+  box-shadow:0 4px 14px rgba(0,0,0,.55);
+}
 .help-btn{
   flex-shrink:0; width:34px; height:34px; border-radius:50%;
   background:var(--soft-surface); border:1.5px solid var(--soft-border);
@@ -813,6 +844,7 @@ table.score-grid td.filled.team-b{
 
   <!-- 設定画面（縦画面のまま表示） -->
   <div id="settings">
+    <div class="court-badge court-badge-settings" id="courtBadgeSettings" style="display:none;"></div>
     <div class="settings-title-row">
       <h1 class="settings-title"><span class="shuttle">🏸</span>バドる - 試合設定</h1>
       <button type="button" id="helpBtn" class="help-btn">?</button>
@@ -928,6 +960,7 @@ table.score-grid td.filled.team-b{
   <div class="rotor">
   <div id="board">
     <button class="gear-btn" id="gearBtn">⚙</button>
+    <div class="court-badge court-badge-board" id="courtBadgeBoard" style="display:none;"></div>
     <div class="game-target-badge" id="gameBadge"></div>
     <div class="set-status" id="setStatus"></div>
     <div class="board-main">
@@ -1452,11 +1485,28 @@ function applyTaikaLockUI(){
     const inp = document.getElementById(id);
     if(inp) inp.readOnly = locked;
   });
+  updateCourtBadge();
+}
+function updateCourtBadge(){
+  // 連携中は、設定画面・得点盤面のどちらにいても常に一目でコート番号がわかるよう、
+  // 専用のバッジを固定表示する
+  const show = !!(taikaLink && taikaLink.enabled && taikaLink.courtNo);
+  const text = show ? `コート ${taikaLink.courtNo}` : '';
+  const badgeSettings = document.getElementById('courtBadgeSettings');
+  const badgeBoard = document.getElementById('courtBadgeBoard');
+  if(badgeSettings){
+    badgeSettings.textContent = text;
+    badgeSettings.style.display = show ? '' : 'none';
+  }
+  if(badgeBoard){
+    badgeBoard.textContent = text;
+    badgeBoard.style.display = show ? '' : 'none';
+  }
 }
 function notifyTaikaMatchLive(){
   const ref = taikaCourtRef();
   if(!ref) return;
-  ref.update({ status:'live', live:null }).catch(()=>{});
+  ref.update({ status:'live', live:null, startedAt: Date.now(), updatedAt: Date.now() }).catch(()=>{});
 }
 function notifyTaikaMatchFinished(result){
   const ref = taikaCourtRef();
