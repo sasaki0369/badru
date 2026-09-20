@@ -745,6 +745,10 @@ table.score-grid td.player-name{
   min-width:100px;
   max-width:100px;
 }
+
+.sheet-player-name{display:block;line-height:1.2;}
+.sheet-player-club{display:block;line-height:1.15;font-weight:600;color:var(--soft-text-dim);white-space:nowrap;overflow:hidden;text-align:left;margin-top:1px;}
+.name-box .sheet-player-club{text-align:center;margin-top:2px;}
 table.score-grid td.sr-mark{
   font-weight:800;
   min-width:11px;
@@ -1127,6 +1131,7 @@ try{
 let taikaCourtListenerRef = null;
 let taikaRulesListenerRef = null;
 let taikaEventListenerRef = null; // 簡易自動配信用（大会全体を監視）
+let taikaEventDataCache = null; // 大会全体データ（所属チーム補完・大会情報同期用）
 let taikaCourtData = null; // 直近取得したコート状態のキャッシュ
 let matchRefListenerTarget = null; // subscribeMatchRef()より前に宣言（TDZ回避）
 
@@ -1474,7 +1479,13 @@ function applyTaikaMatchToForm(match){
   document.getElementById('nameA2').value = (match.teamA && match.teamA[1]) || '選手A2';
   document.getElementById('nameB1').value = (match.teamB && match.teamB[0]) || '選手B1';
   document.getElementById('nameB2').value = (match.teamB && match.teamB[1]) || '選手B2';
-  currentTeamClubs = { A:(match.teamAClubs||['','']).slice(), B:(match.teamBClubs||['','']).slice() };
+  // 所属は配信試合に同梱された配列を優先。旧配信データでは大会全体のplayerClubsから補完する。
+  const clubMap = (taikaEventDataCache && taikaEventDataCache.playerClubs) || {};
+  const aNames = (match.teamA || []), bNames = (match.teamB || []);
+  currentTeamClubs = {
+    A: (match.teamAClubs || aNames.map(n=>clubMap[n]||'') || ['','']).slice(),
+    B: (match.teamBClubs || bNames.map(n=>clubMap[n]||'') || ['','']).slice()
+  };
   while(currentTeamClubs.A.length<2) currentTeamClubs.A.push('');
   while(currentTeamClubs.B.length<2) currentTeamClubs.B.push('');
   renderTeamClubs();
@@ -1581,6 +1592,9 @@ function watchTaikaEventForLiteDispatch(){
   ref.on('value', snap=>{
     const data = snap.val();
     if(!data) return;
+    taikaEventDataCache = data;
+    // 既にコートの試合を読み込んだ後で大会全体データが届いた場合も、所属を補完して再描画する
+    if(taikaCourtData && taikaCourtData.match){ applyTaikaMatchToForm(taikaCourtData.match); }
     // 大会名・会場をスコアシート用の欄にも自動反映する（連携中は常に同期）
     if(data.eventName){
       const tournamentNameInp = document.getElementById('tournamentName');
@@ -1590,13 +1604,7 @@ function watchTaikaEventForLiteDispatch(){
       const venueNameInp = document.getElementById('venueName');
       if(venueNameInp) venueNameInp.value = data.venueName;
     }
-    const next = liteAssignIdleCourts(data);
-    if(next !== data){
-      ref.transaction(cur=>{
-        if(!cur) return cur;
-        return liteAssignIdleCourts(cur);
-      });
-    }
+    // 試合の配信は大会Nowの「配信」ボタンだけで行う。バドる側からの自動割当は行わない。
   });
 }
 function applyTaikaRulesToForm(rules){
@@ -2345,8 +2353,24 @@ function fmtTeamName(team){
   return settings.players[team].join(' / ');
 }
 
+function clubForPlayer(team, playerName){
+  const arr=(settings && settings.playerClubs && settings.playerClubs[team]) || currentTeamClubs[team] || [];
+  const players=(settings && settings.players && settings.players[team]) || [];
+  const idx=players.indexOf(playerName);
+  return idx>=0 ? (arr[idx]||'') : '';
+}
+function fitClubFontSize(club, maxPx=9){
+  // 約100px幅を基準に、長い所属名ほど自動的に縮小（印刷時も崩れにくい下限5px）
+  const len=Array.from(String(club||'')).length + 2; // （）分
+  return Math.max(5, Math.min(maxPx, Math.floor(92/Math.max(1,len))));
+}
+function playerWithClubHtml(team, playerName, centered=false){
+  const club=clubForPlayer(team,playerName);
+  const align=centered?'text-align:center;':'';
+  return `<span class="sheet-player-name">${playerName}</span>${club?`<span class="sheet-player-club" style="font-size:${fitClubFontSize(club)}px;${align}">（${club}）</span>`:''}`;
+}
 function fmtTeamNameStacked(team){
-  return settings.players[team].join('<br>');
+  return settings.players[team].map(n=>playerWithClubHtml(team,n,true)).join('<br>');
 }
 
 function playerRowsForTeam(team){
@@ -2367,7 +2391,7 @@ function scoreGridPlayerRowHtml(game, team, playerName, totalPoints){
     bySeq.set(p.seq, sc);
   });
 
-  let html = `<td class="player-name">${playerName}</td>`;
+  let html = `<td class="player-name">${playerWithClubHtml(team, playerName)}</td>`;
   html += `<td class="sr-mark">${isServerStart ? 'S' : (isReceiverStart ? 'R' : '')}</td>`;
   html += `<td class="${(isServerStart || isReceiverStart) ? ('filled' + (team==='B' ? ' team-b' : '')) : ''}">${(isServerStart || isReceiverStart) ? '0' : ''}</td>`;
 
