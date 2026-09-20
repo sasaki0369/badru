@@ -1314,7 +1314,12 @@ function setCourtReadOnly(readOnly, owner){
   const badge = ensureSpectatorBadge();
   badge.style.display = readOnly ? 'flex' : 'none';
   const startBtn = document.getElementById('startBtn');
-  if(startBtn && taikaLink && taikaLink.enabled) startBtn.disabled = readOnly;
+  if(startBtn && taikaLink && taikaLink.enabled){
+    // 操作権だけでなく、実際に『配信済み・開始待ち』の試合がある時だけ開始可能。
+    // 配信待ち／進行中では、ロック状態が変わってもグレーアウトを維持する。
+    const canStart = !!(!readOnly && taikaCourtData && taikaCourtData.status === 'assigned' && taikaCourtData.match);
+    startBtn.disabled = !canStart;
+  }
 }
 function courtLockPathRef(){
   if(!dbReady || !db || !taikaLink || !taikaLink.enabled || !taikaLink.eventId || !taikaLink.courtNo) return null;
@@ -1654,7 +1659,8 @@ function renderTaikaStatusHint(courtData){
     if(startBtn) startBtn.disabled = !hasCourtOperationRight();
   }else if(courtData.status === 'live'){
     taikaStatusHint.textContent = `${courtLabel}大会Now連携：この試合は進行中として記録されています。`;
-    if(startBtn) startBtn.disabled = !hasCourtOperationRight();
+    // 進行中の試合を設定画面から二重開始してスコアを初期化しない。
+    if(startBtn) startBtn.disabled = true;
   }
 }
 function stopTaikaListener(){
@@ -1886,7 +1892,20 @@ function updateCourtBadge(){
 function notifyTaikaMatchLive(){
   const ref = taikaCourtRef();
   if(!ref) return;
-  ref.update({ status:'live', live:null, startedAt: Date.now(), updatedAt: Date.now() }).catch(()=>{});
+  // 大会Now側の『配信取りやめ』と同時操作になっても、取消済みコートを
+  // status=live に復活させないよう transaction で配信状態を再確認する。
+  const expected = taikaCourtData && taikaCourtData.match;
+  const expectedId = expected && (expected.id || expected.matchCode || null);
+  const now = Date.now();
+  return ref.transaction(court=>{
+    if(!court || court.status !== 'assigned' || !court.match) return;
+    const actualId = court.match.id || court.match.matchCode || null;
+    if(expectedId && actualId && expectedId !== actualId) return;
+    return Object.assign({}, court, {status:'live', live:null, startedAt:now, updatedAt:now});
+  }).then(result=>!!(result && result.committed)).catch(err=>{
+    console.error('試合開始状態の同期に失敗しました', err);
+    return false;
+  });
 }
 function calcOfficialRetirementPoints(){
   // 棄権時の公式スコア：実際に取得済みの得点は残し、未取得分は勝者側が取得したものとして補完する。
@@ -1979,7 +1998,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   // 配信待ち（コートデータなし／idle／matchなし）では、DOMのdisabled状態に関係なく開始を拒否する。
   if(taikaLink && taikaLink.enabled){
     const hasDispatchedMatch = !!(taikaCourtData && taikaCourtData.match &&
-      (taikaCourtData.status === 'assigned' || taikaCourtData.status === 'live'));
+      taikaCourtData.status === 'assigned');
     if(!hasDispatchedMatch){
       settingsErr.textContent = '大会Nowから試合が配信されるまで開始できません';
       renderTaikaStatusHint(taikaCourtData);
@@ -2024,8 +2043,22 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
     courtNumber: document.getElementById('courtNumber').value.trim()
   };
 
-  startNewMatch();
-  notifyTaikaMatchLive();
+  if(taikaLink && taikaLink.enabled){
+    // 大会Now側で同時に「配信取りやめ」が押された場合にローカルだけ試合開始しないよう、
+    // Firebase上で assigned→live を確保できてから得点盤を開始する。
+    const startBtnEl=document.getElementById('startBtn');
+    if(startBtnEl) startBtnEl.disabled=true;
+    notifyTaikaMatchLive().then(committed=>{
+      if(!committed){
+        settingsErr.textContent='配信状態が変更されたため開始できません。大会Nowの配信を確認してください';
+        renderTaikaStatusHint(taikaCourtData);
+        return;
+      }
+      startNewMatch();
+    });
+  }else{
+    startNewMatch();
+  }
 });
 
 /* ---------- 使い方モーダル ---------- */
