@@ -1519,6 +1519,16 @@ function applyTaikaMatchToForm(match){
   refreshPlayerSelects();
 }
 let lastTaikaMatchId = null;
+function clearTaikaMatchForm(){
+  // 配信待ちでは、直前に見ていたコート/試合の選手情報を残さない
+  ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const mn=document.getElementById('matchNumber'); if(mn) mn.value='';
+  currentTeamClubs={A:['',''],B:['','']};
+  renderTeamClubs();
+  refreshPlayerSelects();
+}
 function renderTaikaStatusHint(courtData){
   const startBtn = document.getElementById('startBtn');
   const waitEl = document.getElementById('dispatchWait');
@@ -1670,6 +1680,11 @@ function startTaikaListener(){
     // 「配信済み」だけでなく「進行中」のコートを後から開いた場合も、
     // 大会Now側の現在試合を設定画面へ復元する。
     // これにより大会Nowのコートリンクからバドるを開き直しても選手名が空欄にならない。
+    if(!data || data.status === 'idle' || !data.match){
+      lastTaikaMatchId = null;
+      clearTaikaMatchForm();
+      return;
+    }
     if(data && (data.status === 'assigned' || data.status === 'live') && data.match){
       const matchId = data.match.id || (data.match.matchCode + '_' + JSON.stringify(data.match.teamA));
       if(matchId !== lastTaikaMatchId){
@@ -1745,6 +1760,8 @@ function switchTaikaCourt(courtNo){
   const tc=document.getElementById('taikaCourtNo'); if(tc) tc.value=courtNo;
   const cn=document.getElementById('courtNumber'); if(cn) cn.value=courtNo;
   lastTaikaMatchId=null; taikaCourtData=null;
+  clearTaikaMatchForm();
+  renderTaikaStatusHint({status:'idle', match:null});
   document.getElementById('courtSelectOverlay')?.classList.remove('active');
   reapplyTaikaLink();
 }
@@ -2421,7 +2438,8 @@ const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmMsg = document.getElementById('confirmMsg');
 let confirmCb = null;
 function openConfirm(msg, cb){
-  confirmMsg.textContent = msg;
+  // 確認文では改行・補足表示用の安全な固定HTMLを使用する呼び出しがある
+  confirmMsg.innerHTML = msg;
   confirmCb = cb;
   confirmOverlay.classList.add('active');
 }
