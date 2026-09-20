@@ -1500,6 +1500,7 @@ function applyTaikaMatchToForm(match){
 }
 let lastTaikaMatchId = null;
 function renderTaikaStatusHint(courtData){
+  const startBtn = document.getElementById('startBtn');
   if(!taikaLink || !taikaLink.enabled){
     taikaStatusHint.textContent = '連携すると、大会Nowから配信された次の試合が自動的に反映されます。';
     return;
@@ -1507,14 +1508,18 @@ function renderTaikaStatusHint(courtData){
   const courtLabel = taikaLink.courtNo ? `【コート${taikaLink.courtNo}】` : '';
   if(!courtData){
     taikaStatusHint.textContent = `${courtLabel}大会Nowのデータを待っています…（大会IDを確認してください）`;
+    if(startBtn) startBtn.disabled = true;
     return;
   }
   if(courtData.status === 'idle' || !courtData.match){
-    taikaStatusHint.textContent = `${courtLabel}大会Now連携：次の試合待ちです。試合が配信されると自動的に入力されます。`;
+    taikaStatusHint.textContent = `${courtLabel}大会Now連携：次の試合待ちです。運営側から配信されるまでこのまま待機してください。`;
+    if(startBtn) startBtn.disabled = true;
   }else if(courtData.status === 'assigned'){
     taikaStatusHint.textContent = `${courtLabel}大会Now連携：試合が配信されました。内容を確認して「試合開始」を押してください。`;
+    if(startBtn) startBtn.disabled = !hasCourtOperationRight();
   }else if(courtData.status === 'live'){
     taikaStatusHint.textContent = `${courtLabel}大会Now連携：この試合は進行中として記録されています。`;
+    if(startBtn) startBtn.disabled = !hasCourtOperationRight();
   }
 }
 function stopTaikaListener(){
@@ -2491,7 +2496,7 @@ function openScoreSheet(){
     <div class="sheet-btns">
       ${match.status === 'finished' ? '<button class="print-btn" id="sheetUndoBtn">Undo</button>' : ''}
       <button class="print-btn" id="printBtn">印刷 / PDF保存</button>
-      <button class="new-btn" id="newMatchBtn">新しい試合へ</button>
+      <button class="new-btn" id="newMatchBtn">終了</button>
     </div>
   `;
 
@@ -2512,7 +2517,26 @@ function openScoreSheet(){
     }
     archiveMatch();
     sheetOverlay.classList.remove('active');
+    // 大会Now連携時は、終了後に次試合を自分で作成せず、運営側からの配信を待つ。
+    // 現在試合の表示をクリアし、設定画面を「待機状態」として使う。
+    if(taikaLink && taikaLink.enabled){
+      lastTaikaMatchId = null;
+      ['nameA1','nameA2','nameB1','nameB2'].forEach((id)=>{
+        const el=document.getElementById(id); if(el) el.value='';
+      });
+      currentTeamClubs = {A:['',''], B:['','']};
+      renderTeamClubs();
+      refreshPlayerSelects();
+      state = null;
+      match = null;
+      clearActiveMatchLocal();
+    }
     showSettings();
+    if(taikaLink && taikaLink.enabled){
+      const startBtn=document.getElementById('startBtn');
+      if(startBtn) startBtn.disabled=true;
+      renderTaikaStatusHint({status:'idle', match:null});
+    }
   });
   const sheetUndoBtn = document.getElementById('sheetUndoBtn');
   if(sheetUndoBtn){
