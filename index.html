@@ -1973,6 +1973,17 @@ reapplyTaikaLink();
 refreshPlayerSelects();
 document.getElementById('startBtn').addEventListener('click', ()=>{
   if(!hasCourtOperationRight()) return;
+  // 大会Now連携中は、運営側から現在のコートへ試合が配信されている場合だけ開始できる。
+  // 配信待ち（コートデータなし／idle／matchなし）では、DOMのdisabled状態に関係なく開始を拒否する。
+  if(taikaLink && taikaLink.enabled){
+    const hasDispatchedMatch = !!(taikaCourtData && taikaCourtData.match &&
+      (taikaCourtData.status === 'assigned' || taikaCourtData.status === 'live'));
+    if(!hasDispatchedMatch){
+      settingsErr.textContent = '大会Nowから試合が配信されるまで開始できません';
+      renderTaikaStatusHint(taikaCourtData);
+      return;
+    }
+  }
   settingsErr.textContent = '';
   const players = currentPlayers();
 
