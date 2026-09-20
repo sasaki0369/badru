@@ -863,6 +863,10 @@ table.score-grid td.filled.team-b{
   white-space:normal;
   overflow-wrap:anywhere;
 }
+
+/* 大会Nowから受信した所属チーム：選手名を主役にし、所属は控えめな補助情報として表示 */
+.player-club{font-size:clamp(11px,2.2vw,15px);color:var(--soft-text-dim);font-weight:600;line-height:1.25;margin:-.15vh .35vw .75vh;min-height:1.25em;letter-spacing:.01em;}
+.player-club:empty{display:none;}
 </style>
 
 </head>
@@ -925,13 +929,17 @@ table.score-grid td.filled.team-b{
         <div class="team-block">
           <div class="team-label">LEFT</div>
           <input type="text" id="nameA1" placeholder="選手1" value="選手A1">
+          <div class="player-club" id="clubA1"></div>
           <input type="text" id="nameA2" placeholder="選手2（ダブルス）" value="選手A2">
+          <div class="player-club" id="clubA2"></div>
         </div>
         <button type="button" id="swapSidesBtn" class="swap-btn" title="左右の選手名を入れ替え" aria-label="左右の選手名を入れ替え">⇄</button>
         <div class="team-block">
           <div class="team-label">RIGHT</div>
           <input type="text" id="nameB1" placeholder="選手1" value="選手B1">
+          <div class="player-club" id="clubB1"></div>
           <input type="text" id="nameB2" placeholder="選手2（ダブルス）" value="選手B2">
+          <div class="player-club" id="clubB2"></div>
         </div>
       </div>
       <div class="hint">LEFTが試合開始時に画面の左に表示されます。中央のボタンで入れ替えられます。</div>
@@ -1327,6 +1335,7 @@ const segTaikaLink = document.getElementById('segTaikaLink');
 const taikaStatusHint = document.getElementById('taikaStatusHint');
 
 let curType = 'doubles';
+var currentTeamClubs = { A:['',''], B:['',''] };
 let curFormat = 'best3';
 let curPoints = 15;
 let curDeuce = true;
@@ -1341,6 +1350,7 @@ function applyTypeVisibility(){
   const doubles = curType === 'doubles';
   nameA2.style.display = doubles ? 'block' : 'none';
   nameB2.style.display = doubles ? 'block' : 'none';
+  if(typeof renderTeamClubs==='function') renderTeamClubs();
 }
 applyTypeVisibility();
 
@@ -1427,6 +1437,19 @@ firstServerSel.addEventListener('change', updateReceiverOptions);
 ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
   document.getElementById(id).addEventListener('input', refreshPlayerSelects);
 });
+function renderTeamClubs(){
+  ['A','B'].forEach(side=>{
+    [0,1].forEach(i=>{
+      const el=document.getElementById('club'+side+(i+1));
+      if(el) el.textContent=(currentTeamClubs[side]&&currentTeamClubs[side][i]) ? '（'+currentTeamClubs[side][i]+'）' : '';
+    });
+  });
+  const doubles = curType === 'doubles';
+  const a2c=document.getElementById('clubA2'), b2c=document.getElementById('clubB2');
+  if(a2c) a2c.style.display=doubles && a2c.textContent ? 'block':'none';
+  if(b2c) b2c.style.display=doubles && b2c.textContent ? 'block':'none';
+}
+
 document.getElementById('swapSidesBtn').addEventListener('click', ()=>{
   const a1 = document.getElementById('nameA1');
   const a2 = document.getElementById('nameA2');
@@ -1434,6 +1457,8 @@ document.getElementById('swapSidesBtn').addEventListener('click', ()=>{
   const b2 = document.getElementById('nameB2');
   [a1.value, b1.value] = [b1.value, a1.value];
   [a2.value, b2.value] = [b2.value, a2.value];
+  [currentTeamClubs.A, currentTeamClubs.B] = [currentTeamClubs.B, currentTeamClubs.A];
+  renderTeamClubs();
   refreshPlayerSelects();
 });
 
@@ -1449,6 +1474,10 @@ function applyTaikaMatchToForm(match){
   document.getElementById('nameA2').value = (match.teamA && match.teamA[1]) || '選手A2';
   document.getElementById('nameB1').value = (match.teamB && match.teamB[0]) || '選手B1';
   document.getElementById('nameB2').value = (match.teamB && match.teamB[1]) || '選手B2';
+  currentTeamClubs = { A:(match.teamAClubs||['','']).slice(), B:(match.teamBClubs||['','']).slice() };
+  while(currentTeamClubs.A.length<2) currentTeamClubs.A.push('');
+  while(currentTeamClubs.B.length<2) currentTeamClubs.B.push('');
+  renderTeamClubs();
   const doubles = match.matchType === 'doubles';
   curType = doubles ? 'doubles' : 'singles';
   setSeg(segType, curType);
@@ -1785,6 +1814,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
     deuce: curDeuce,
     deuceMax: dMax,
     players,
+    playerClubs: currentTeamClubs,
     firstServer,
     firstReceiver,
     initialLeftTeam: 'A',
