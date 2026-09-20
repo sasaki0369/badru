@@ -1495,6 +1495,11 @@ function setTaikaSeg(value){
 }
 function applyTaikaMatchToForm(match){
   if(!match) return;
+  // 実際の配信を受けたときだけ選手入力欄とサーバー／レシーバー選択を復帰
+  const ph={nameA1:'選手1',nameA2:'選手2',nameB1:'選手1',nameB2:'選手2'};
+  Object.entries(ph).forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.placeholder=v; });
+  if(firstServerSel) firstServerSel.disabled=false;
+  if(firstReceiverSel) firstReceiverSel.disabled=false;
   document.getElementById('nameA1').value = (match.teamA && match.teamA[0]) || '選手A1';
   document.getElementById('nameA2').value = (match.teamA && match.teamA[1]) || '選手A2';
   document.getElementById('nameB1').value = (match.teamB && match.teamB[0]) || '選手B1';
@@ -1520,14 +1525,17 @@ function applyTaikaMatchToForm(match){
 }
 let lastTaikaMatchId = null;
 function clearTaikaMatchForm(){
-  // 配信待ちでは、直前に見ていたコート/試合の選手情報を残さない
+  // 配信待ちでは、直前の選手情報だけでなくプレースホルダーも表示しない
   ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
+    const el=document.getElementById(id);
+    if(el){ el.value=''; el.placeholder=''; }
   });
   const mn=document.getElementById('matchNumber'); if(mn) mn.value='';
   currentTeamClubs={A:['',''],B:['','']};
   renderTeamClubs();
-  refreshPlayerSelects();
+  // 配信待ち中はサーバー／レシーバーにも仮の選手名を生成しない
+  if(firstServerSel){ firstServerSel.innerHTML='<option value=""></option>'; firstServerSel.disabled=true; }
+  if(firstReceiverSel){ firstReceiverSel.innerHTML='<option value=""></option>'; firstReceiverSel.disabled=true; }
 }
 function renderTaikaStatusHint(courtData){
   const startBtn = document.getElementById('startBtn');
