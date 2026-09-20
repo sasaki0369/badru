@@ -1631,7 +1631,10 @@ function startTaikaListener(){
     // 試合中でない時に、新しく配信された試合があれば自動反映する
     // （結果送信→次の配信が同期的に連続することがあるため、設定画面の表示有無では判定しない）
     if(state && state.status === 'ongoing') return;
-    if(data && data.status === 'assigned' && data.match){
+    // 「配信済み」だけでなく「進行中」のコートを後から開いた場合も、
+    // 大会Now側の現在試合を設定画面へ復元する。
+    // これにより大会Nowのコートリンクからバドるを開き直しても選手名が空欄にならない。
+    if(data && (data.status === 'assigned' || data.status === 'live') && data.match){
       const matchId = data.match.id || (data.match.matchCode + '_' + JSON.stringify(data.match.teamA));
       if(matchId !== lastTaikaMatchId){
         lastTaikaMatchId = matchId;
