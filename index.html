@@ -262,6 +262,73 @@ html,body{
 .controls button.stop-btn{ color:var(--soft-danger); }
 .controls button:disabled{ color:#3a3a3a; }
 
+
+
+/* ===== iPad 9 / 会場遠距離視認性向上 ===== */
+/* 得点を画面の主役にし、選手名・ゲームカウントも離れた場所から判読しやすくする */
+#board .side{
+  padding:0.3vh 1.4vw 0.45vh;
+}
+#board .score-zone{
+  flex:1 1 auto;
+  width:100%;
+}
+#board .plain-score-digits{
+  font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;
+  font-weight:900;
+  line-height:.84;
+  letter-spacing:-.055em;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:geometricPrecision;
+}
+#board .court-slots{
+  gap:1.6vw;
+  margin-top:0;
+  min-height:9vh;
+  align-items:center;
+}
+#board .slot{
+  max-width:48%;
+  font-family:"Helvetica Neue","Noto Sans JP",Arial,sans-serif;
+  font-size:clamp(24px,3.35vw,46px);
+  font-weight:800;
+  line-height:1.05;
+  padding:.15vh .45vw .55vh;
+  text-shadow:0 1px 2px rgba(0,0,0,.65);
+}
+#board .set-status{
+  top:.55vh;
+  max-width:34%;
+  font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;
+  font-size:clamp(28px,3.2vw,48px);
+  font-weight:900;
+  line-height:1;
+  color:#fff;
+  letter-spacing:.08em;
+  text-shadow:0 2px 4px rgba(0,0,0,.7);
+  overflow:visible;
+}
+#board .game-target-badge{
+  top:.8vh;
+  font-size:clamp(18px,1.8vw,28px);
+  font-weight:700;
+}
+#board .controls{
+  height:7.5vh;
+  min-height:48px;
+  padding:.55vh 1.2vw;
+}
+#board .controls button{
+  font-size:clamp(18px,2vw,28px);
+  font-weight:700;
+}
+@media (min-width:900px) and (orientation:landscape){
+  #board .side{ padding-left:.9vw; padding-right:.9vw; }
+  #board .court-slots{ min-height:10vh; }
+  #board .slot{ font-size:clamp(30px,3.15vw,50px); }
+  #board .set-status{ font-size:clamp(34px,3.4vw,52px); }
+}
+
 /* ---------- 設定画面（縦画面固定・柔らかい配色・大きめUI） ---------- */
 #settings{
   position:relative;
@@ -2349,15 +2416,15 @@ function computeCardStyle(leftDigits, rightDigits){
   if(!zoneL || !zoneR) return null;
 
   // 横幅・縦幅の両方を使い切れるよう、余白は最小限にする
-  const minW = Math.min(zoneL.clientWidth, zoneR.clientWidth) * 0.96;
-  const minH = Math.min(zoneL.clientHeight, zoneR.clientHeight) * 0.96;
+  const minW = Math.min(zoneL.clientWidth, zoneR.clientWidth) * 0.995;
+  const minH = Math.min(zoneL.clientHeight, zoneR.clientHeight) * 0.995;
   if(minW <= 0 || minH <= 0) return null;
 
   // 1桁→2桁で見た目のサイズが変わらないよう、最初から常に2桁分の横幅を確保しておく
   // （バドミントンの通常の得点は最大でも2桁のため、これで試合を通して同じ文字サイズを維持できる）
   const maxDigits = Math.max(2, leftDigits, rightDigits);
   // 太字の等幅数字1文字あたりの実測目安（フォントサイズに対する横幅の比率）
-  const CHAR_WIDTH_RATIO = 0.62;
+  const CHAR_WIDTH_RATIO = 0.56;
 
   // 横幅だけでなく縦幅も最大限に使うため、両方の制約のうち小さい方に合わせて最大化する
   // （4:3など縦が長い画面でも、横幅だけに引きずられて小さくなり過ぎないようにする）
