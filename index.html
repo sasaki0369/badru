@@ -1942,7 +1942,10 @@ function notifyTaikaMatchFinished(result){
   const refInfo = assignedMatch
     ? { refType: assignedMatch.refType || null, refId: assignedMatch.refId || null, refMatchIndex: (assignedMatch.refMatchIndex !== undefined ? assignedMatch.refMatchIndex : null) }
     : { refType: null, refId: null, refMatchIndex: null };
-  const payload = Object.assign({ pointsA, pointsB, officialGames: retirementOfficial ? retirementOfficial.games : null }, result, refInfo);
+  const gameScores = retirementOfficial
+    ? retirementOfficial.games.map(g=>({A:Number(g.A)||0,B:Number(g.B)||0}))
+    : ((match && match.games) ? match.games.map(g=>({A:Number(g.score && g.score.A)||0,B:Number(g.score && g.score.B)||0})) : []);
+  const payload = Object.assign({ pointsA, pointsB, officialGames: retirementOfficial ? retirementOfficial.games : null, gameScores }, result, refInfo);
   ref.update({ status:'idle', match:null, live:null, lastResult: payload, updatedAt: Date.now() }).catch(()=>{});
 }
 function mirrorTaikaLiveScore(){
