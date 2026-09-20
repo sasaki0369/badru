@@ -330,7 +330,7 @@ html,body{
 }
 
 /* iPad/Safari: ブラウザのアドレスバーで100vhが実表示領域より大きくなる場合でも
-   Undo・チェンジエンド・棄権・開始取消を必ず画面内に固定する。 */
+   Undo・棄権・開始取消を必ず画面内に固定する。 */
 @supports (height: 100dvh){
   .rotor{ height:100dvh; }
   #app{ height:100dvh; }
@@ -1115,7 +1115,6 @@ table.score-grid td.filled.team-b{
     </div>
     <div class="controls">
       <button class="undo-btn" id="undoBtn">Undo</button>
-      <button class="change-btn" id="changeEndBtn">チェンジエンド</button>
       <button class="stop-btn" id="retireBtn">棄権</button>
       <button class="stop-btn" id="stopBtn">開始取消</button>
     </div>
@@ -2020,7 +2019,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 const HELP_SECTIONS = [
   { title:'① 基本の使い方', lines:[
     '選手名・種目・試合形式（1/3ゲームマッチ）・得点（15/21/カスタム）・セッティング（デュース）有無を設定し、「試合開始」を押します。',
-    'コート中央をタップして得点、Undoで取り消し、チェンジエンドで左右入替、開始取消で誤って開始した試合を待機中へ戻します。'
+    'コート中央をタップして得点、Undoで取り消し、開始取消で誤って開始した試合を試合設定画面へ戻します。'
   ]},
   { title:'② 棄権の記録', lines:[
     '<b>試合中の棄権</b>：盤面の「棄権」ボタンでどちら側が棄権したかを選ぶと、相手の勝ちとして即座に決着します。',
@@ -2029,7 +2028,7 @@ const HELP_SECTIONS = [
     'スコアシートには「棄権」の表記が入り、大会Now連携時はリーグ表にも反映されます。'
   ]},
   { title:'③ スコアシート', lines:[
-    '試合終了・棄権では、公式様式に近いスコアシートが自動作成されます。開始取消では結果を作成せず待機中へ戻します。',
+    '試合終了・棄権では、公式様式に近いスコアシートが自動作成されます。開始取消では結果を作成せず、配信を維持したまま試合設定画面へ戻ります。',
     '印刷やメールへの貼り付けにも対応しています。'
   ]},
   { title:'④ 大会Now連携', lines:[
@@ -2306,8 +2305,9 @@ function changeEnd(){
 function cancelMatchStart(){
   if(!state || state.status !== 'ongoing') return;
 
-  // 大会Now連携時は「試合終了」にはせず、配信前の待機キューへ戻す。
-  // これにより誤配信・誤開始した試合を、運営側から別コートへ再配信できる。
+  // 大会Now連携時の「開始取消」は配信自体を取り消さない。
+  // コートへの配信は保持したまま「配信済み・開始待ち」に戻し、
+  // バドるの試合設定画面で左右（コート）を入れ替えて再度開始できるようにする。
   if(taikaLink && taikaLink.enabled && dbReady && db && taikaLink.eventId){
     const eventRef = db.ref('taikainow/' + taikaLink.eventId);
     const courtNo = String(taikaLink.courtNo);
@@ -2316,28 +2316,22 @@ function cancelMatchStart(){
       const courts = Object.assign({}, data.courts || {});
       const court = courts[courtNo];
       if(!court || !court.match) return data;
-      const returned = court.match;
-      const queue = (data.queue || []).slice();
-      const rid = returned.id || returned.matchCode || null;
-      const exists = queue.some(q=>{
-        const qid = q && (q.id || q.matchCode || null);
-        return rid ? qid === rid : JSON.stringify(q) === JSON.stringify(returned);
-      });
-      if(!exists) queue.push(returned);
       courts[courtNo] = Object.assign({}, court, {
-        status:'idle', match:null, live:null, assignedAt:null, startedAt:null,
+        status:'assigned',
+        live:null,
+        startedAt:null,
         updatedAt:Date.now()
       });
-      return Object.assign({}, data, {queue, courts, updatedAt:Date.now()});
+      return Object.assign({}, data, {courts, updatedAt:Date.now()});
     }).then(()=>{
-      lastTaikaMatchId = null;
       state = null; match = null; historyStack = [];
       clearActiveMatchLocal();
-      ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-      currentTeamClubs = {A:['',''], B:['','']};
-      renderTeamClubs(); refreshPlayerSelects();
+      // lastTaikaMatchId は維持する。現在配信中の同じ試合をそのまま設定画面に残す。
       showSettings();
-      renderTaikaStatusHint({status:'idle', match:null});
+      if(taikaCourtData && taikaCourtData.match){
+        applyTaikaMatchToForm(taikaCourtData.match);
+      }
+      renderTaikaStatusHint(Object.assign({}, taikaCourtData||{}, {status:'assigned', live:null, startedAt:null}));
     }).catch(err=>{
       console.error('開始取消に失敗しました', err);
       alert('開始取消に失敗しました。通信状態を確認して、もう一度お試しください。');
@@ -2506,11 +2500,10 @@ sideRightEl.addEventListener('click', ()=>{
 });
 
 document.getElementById('undoBtn').addEventListener('click', ()=>{ if(hasCourtOperationRight()) undoLast(); });
-document.getElementById('changeEndBtn').addEventListener('click', ()=>{ if(hasCourtOperationRight()) changeEnd(); });
 
 document.getElementById('stopBtn').addEventListener('click', ()=>{
   if(!hasCourtOperationRight()) return;
-  openConfirm('試合の開始を取り消しますか？<br><span style="font-size:.78em;font-weight:500;">入力したスコアは破棄され、この試合は待機中に戻ります。</span>', ()=>{
+  openConfirm('試合の開始を取り消しますか？<br><span style="font-size:.78em;font-weight:500;">入力したスコアは破棄され、試合設定画面に戻ります。配信は維持されます。</span>', ()=>{
     cancelMatchStart();
   });
 });
