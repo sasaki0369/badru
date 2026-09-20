@@ -201,6 +201,14 @@ html,body{
 .slot.empty{ visibility:hidden; }
 .slot.server{ color:var(--orange); }
 .slot.active-box{ box-shadow:inset 0 -3px 0 currentColor; }
+/* シングルスは選手名を各スコアの真下中央に固定 */
+.court-slots .slot.singles-player{
+  flex:0 1 92%;
+  max-width:92%;
+  margin-left:auto !important;
+  margin-right:auto !important;
+  text-align:center;
+}
 
 .mid-divider{
   width:3px;
@@ -1232,6 +1240,22 @@ let taikaLink = loadTaikaLink(); // {eventId, courtNo, enabled}
 // 例: index.html?taikaEvent=xxxxx&court=3
 try{
   const urlParams = new URLSearchParams(location.search);
+  // 大会Nowの連携リンクから開いた場合は全画面化を試みる。
+  // ブラウザが自動全画面を禁止している場合は、最初のタップ操作で全画面化する。
+  const taikaFullscreenRequested = urlParams.get('fullscreen') === '1';
+  if(taikaFullscreenRequested){
+    const enterFullscreen = ()=>{
+      const root=document.documentElement;
+      const fn=root.requestFullscreen || root.webkitRequestFullscreen;
+      if(fn && !document.fullscreenElement && !document.webkitFullscreenElement){
+        try{ const r=fn.call(root); if(r&&r.catch) r.catch(()=>{}); }catch(e){}
+      }
+    };
+    setTimeout(enterFullscreen,0);
+    const once=()=>{ enterFullscreen(); document.removeEventListener('pointerdown',once,true); document.removeEventListener('touchend',once,true); };
+    document.addEventListener('pointerdown',once,true);
+    document.addEventListener('touchend',once,true);
+  }
   const urlEventId = urlParams.get('taikaEvent');
   const urlCourtNo = urlParams.get('court');
   if(urlEventId && urlCourtNo){
@@ -2447,13 +2471,14 @@ function renderSlots(container, team){
   if(settings.matchType === 'singles'){
     // シングルスは両者ともサーバー側の得点の奇偶で立ち位置（右/左コート）が決まる
     const name = settings.players[team][0];
-    const refBox = serverBoxOf(serverTeam);
     const isServer = team === serverTeam;
     const slot = document.createElement('div');
-    slot.className = 'slot' + (isServer ? ' server' : '');
+    slot.className = 'slot singles-player' + (isServer ? ' server' : '');
     slot.textContent = name;
-    slot.style.marginLeft = refBox === 'right' ? 'auto' : '0';
-    slot.style.marginRight = refBox === 'left' ? 'auto' : '0';
+    // シングルスの選手名はコート内の立ち位置に追従させず、
+    // 左右それぞれのスコア直下中央に固定する。
+    slot.style.marginLeft = 'auto';
+    slot.style.marginRight = 'auto';
     container.appendChild(slot);
     return;
   }
