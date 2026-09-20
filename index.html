@@ -307,6 +307,16 @@ html,body{
   padding:8px 16px;
   font-size:clamp(14px, 4vw, 17px);
 }
+.court-badge-settings{cursor:pointer;user-select:none;}
+.court-badge-settings:active{transform:scale(.97);}
+.dispatch-wait{display:none;margin:18px 0 24px;padding:28px 18px;border:2px dashed var(--soft-border);border-radius:20px;text-align:center;background:rgba(255,255,255,.62);color:var(--soft-text);}
+.dispatch-wait.show{display:block;}
+.dispatch-wait .main{font-size:clamp(30px,8vw,44px);font-weight:900;letter-spacing:.06em;}
+.dispatch-wait .sub{margin-top:8px;font-size:clamp(13px,3.2vw,16px);color:var(--soft-text-dim);font-weight:600;}
+#courtSelectOverlay .confirm-box{width:min(92vw,520px);}
+#courtSelectButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+#courtSelectButtons button{padding:14px 8px;border:1px solid var(--soft-border);border-radius:14px;background:#fff;color:var(--soft-text);font-weight:800;font-size:18px;}
+#courtSelectButtons button.current{background:var(--soft-primary);color:#fff;border-color:transparent;}
 .court-badge-board{
   position:absolute;
   top:1vh;
@@ -884,6 +894,7 @@ table.score-grid td.filled.team-b{
       <h1 class="settings-title"><span class="shuttle">🏸</span>バドる - 試合設定</h1>
       <button type="button" id="helpBtn" class="help-btn">?</button>
     </div>
+    <div class="dispatch-wait" id="dispatchWait"><div class="main">配信待ち</div><div class="sub">大会運営から次の試合が配信されるまでお待ちください</div></div>
 
     <div class="field field-type">
       <label>種目</label>
@@ -1016,11 +1027,20 @@ table.score-grid td.filled.team-b{
       <button class="undo-btn" id="undoBtn">Undo</button>
       <button class="change-btn" id="changeEndBtn">チェンジエンド</button>
       <button class="stop-btn" id="retireBtn">棄権</button>
-      <button class="stop-btn" id="stopBtn">中止</button>
+      <button class="stop-btn" id="stopBtn">開始取消</button>
     </div>
   </div>
 
 </div>
+</div>
+
+<!-- コート変更モーダル -->
+<div class="confirm-overlay" id="courtSelectOverlay">
+  <div class="confirm-box">
+    <p>使用するコートを選択</p>
+    <div id="courtSelectButtons"></div>
+    <div class="row" style="margin-top:14px;"><button class="cancel" id="courtSelectCancel" style="width:100%;">キャンセル</button></div>
+  </div>
 </div>
 
 <!-- 棄権：どちら側が棄権するか選択するモーダル -->
@@ -1066,10 +1086,10 @@ table.score-grid td.filled.team-b{
 <!-- 確認ダイアログ -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
-    <p id="confirmMsg">試合を中止しますか？</p>
+    <p id="confirmMsg">試合の開始を取り消しますか？</p>
     <div class="row">
       <button class="cancel" id="confirmCancel">キャンセル</button>
-      <button class="ok" id="confirmOk">中止する</button>
+      <button class="ok" id="confirmOk">実行する</button>
     </div>
   </div>
 </div>
@@ -1501,6 +1521,9 @@ function applyTaikaMatchToForm(match){
 let lastTaikaMatchId = null;
 function renderTaikaStatusHint(courtData){
   const startBtn = document.getElementById('startBtn');
+  const waitEl = document.getElementById('dispatchWait');
+  const waiting = !!(taikaLink && taikaLink.enabled && courtData && (courtData.status === 'idle' || !courtData.match));
+  if(waitEl) waitEl.classList.toggle('show', waiting);
   if(!taikaLink || !taikaLink.enabled){
     taikaStatusHint.textContent = '連携すると、大会Nowから配信された次の試合が自動的に反映されます。';
     return;
@@ -1694,6 +1717,37 @@ function applyTaikaLockUI(){
   });
   updateCourtBadge();
 }
+function openCourtSelector(){
+  if(!(taikaLink && taikaLink.enabled) || (state && state.status === 'ongoing')) return;
+  const ov=document.getElementById('courtSelectOverlay');
+  const box=document.getElementById('courtSelectButtons');
+  if(!ov || !box) return;
+  const count=Math.max(1, Number((taikaEventDataCache&&taikaEventDataCache.courtCount)||taikaLink.courtNo||1));
+  box.innerHTML='';
+  for(let i=1;i<=count;i++){
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=`コート ${i}`;
+    if(String(i)===String(taikaLink.courtNo)) b.classList.add('current');
+    b.addEventListener('click',()=>switchTaikaCourt(i));
+    box.appendChild(b);
+  }
+  ov.classList.add('active');
+}
+function switchTaikaCourt(courtNo){
+  courtNo=String(courtNo);
+  if(!taikaLink || !taikaLink.enabled || courtNo===String(taikaLink.courtNo)){
+    document.getElementById('courtSelectOverlay')?.classList.remove('active'); return;
+  }
+  stopTaikaListener(); stopCourtLock();
+  taikaLink={eventId:taikaLink.eventId,courtNo,enabled:true};
+  saveTaikaLink(taikaLink);
+  try{ const u=new URL(location.href); u.searchParams.set('court',courtNo); history.replaceState(null,'',u.toString()); }catch(e){}
+  const tc=document.getElementById('taikaCourtNo'); if(tc) tc.value=courtNo;
+  const cn=document.getElementById('courtNumber'); if(cn) cn.value=courtNo;
+  lastTaikaMatchId=null; taikaCourtData=null;
+  document.getElementById('courtSelectOverlay')?.classList.remove('active');
+  reapplyTaikaLink();
+}
 function updateCourtBadge(){
   // 連携中は、設定画面・得点盤面のどちらにいても常に一目でコート番号がわかるよう、
   // 専用のバッジを固定表示する
@@ -1848,7 +1902,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
 const HELP_SECTIONS = [
   { title:'① 基本の使い方', lines:[
     '選手名・種目・試合形式（1/3ゲームマッチ）・得点（15/21/カスタム）・セッティング（デュース）有無を設定し、「試合開始」を押します。',
-    'コート中央をタップして得点、Undoで取り消し、チェンジエンドで左右入替、中止で試合をやめます。'
+    'コート中央をタップして得点、Undoで取り消し、チェンジエンドで左右入替、開始取消で誤って開始した試合を待機中へ戻します。'
   ]},
   { title:'② 棄権の記録', lines:[
     '<b>試合中の棄権</b>：盤面の「棄権」ボタンでどちら側が棄権したかを選ぶと、相手の勝ちとして即座に決着します。',
@@ -1857,7 +1911,7 @@ const HELP_SECTIONS = [
     'スコアシートには「棄権」の表記が入り、大会Now連携時はリーグ表にも反映されます。'
   ]},
   { title:'③ スコアシート', lines:[
-    '試合終了・中止・棄権のいずれでも、公式様式に近いスコアシートが自動作成されます。',
+    '試合終了・棄権では、公式様式に近いスコアシートが自動作成されます。開始取消では結果を作成せず待機中へ戻します。',
     '印刷やメールへの貼り付けにも対応しています。'
   ]},
   { title:'④ 大会Now連携', lines:[
@@ -2131,21 +2185,52 @@ function changeEnd(){
   pushRemote();
 }
 
-function abortMatch(){
+function cancelMatchStart(){
   if(!state || state.status !== 'ongoing') return;
-  state.status = 'aborted';
-  state.finishedAt = Date.now();
-  state.rev += 1;
 
-  match.games.push(snapshotState());
-  match.status = 'aborted';
-  match.overallWinner = null;
-  match.finishedAt = state.finishedAt;
+  // 大会Now連携時は「試合終了」にはせず、配信前の待機キューへ戻す。
+  // これにより誤配信・誤開始した試合を、運営側から別コートへ再配信できる。
+  if(taikaLink && taikaLink.enabled && dbReady && db && taikaLink.eventId){
+    const eventRef = db.ref('taikainow/' + taikaLink.eventId);
+    const courtNo = String(taikaLink.courtNo);
+    eventRef.transaction(data=>{
+      if(!data) return data;
+      const courts = Object.assign({}, data.courts || {});
+      const court = courts[courtNo];
+      if(!court || !court.match) return data;
+      const returned = court.match;
+      const queue = (data.queue || []).slice();
+      const rid = returned.id || returned.matchCode || null;
+      const exists = queue.some(q=>{
+        const qid = q && (q.id || q.matchCode || null);
+        return rid ? qid === rid : JSON.stringify(q) === JSON.stringify(returned);
+      });
+      if(!exists) queue.push(returned);
+      courts[courtNo] = Object.assign({}, court, {
+        status:'idle', match:null, live:null, assignedAt:null, startedAt:null,
+        updatedAt:Date.now()
+      });
+      return Object.assign({}, data, {queue, courts, updatedAt:Date.now()});
+    }).then(()=>{
+      lastTaikaMatchId = null;
+      state = null; match = null; historyStack = [];
+      clearActiveMatchLocal();
+      ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+      currentTeamClubs = {A:['',''], B:['','']};
+      renderTeamClubs(); refreshPlayerSelects();
+      showSettings();
+      renderTaikaStatusHint({status:'idle', match:null});
+    }).catch(err=>{
+      console.error('開始取消に失敗しました', err);
+      alert('開始取消に失敗しました。通信状態を確認して、もう一度お試しください。');
+    });
+    return;
+  }
 
+  // 単独利用時は結果を残さず設定画面へ戻す。
+  state = null; match = null; historyStack = [];
   clearActiveMatchLocal();
-  render();
-  pushRemote();
-  openScoreSheet();
+  showSettings();
 }
 
 function retireMatch(retiredSide){
@@ -2307,8 +2392,8 @@ document.getElementById('changeEndBtn').addEventListener('click', ()=>{ if(hasCo
 
 document.getElementById('stopBtn').addEventListener('click', ()=>{
   if(!hasCourtOperationRight()) return;
-  openConfirm('試合を中止しますか？', ()=>{
-    abortMatch();
+  openConfirm('試合の開始を取り消しますか？<br><span style="font-size:.78em;font-weight:500;">入力したスコアは破棄され、この試合は待機中に戻ります。</span>', ()=>{
+    cancelMatchStart();
   });
 });
 
@@ -2633,6 +2718,9 @@ window.addEventListener('beforeunload', saveActiveMatchLocal);
 
 /* ---------- 初期表示 ---------- */
 // 進行中データが端末内に残っていれば盤面を即時復元。なければ通常の設定画面へ。
+document.getElementById('courtBadgeSettings')?.addEventListener('click', openCourtSelector);
+document.getElementById('courtSelectCancel')?.addEventListener('click',()=>document.getElementById('courtSelectOverlay')?.classList.remove('active'));
+
 if(!restoreActiveMatchLocal()) showSettings();
 </script>
 </body>
