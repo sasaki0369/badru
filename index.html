@@ -1238,24 +1238,23 @@ function saveTaikaLink(link){
 let taikaLink = loadTaikaLink(); // {eventId, courtNo, enabled}
 // URLパラメータ（大会Nowが発行する連携リンク）が付いている場合は、それを優先して自動連携する
 // 例: index.html?taikaEvent=xxxxx&court=3
+let taikaFullscreenRequested = false;
+function enterTaikaFullscreen(){
+  if(!taikaFullscreenRequested) return;
+  if(document.fullscreenElement || document.webkitFullscreenElement) return;
+  const root=document.documentElement;
+  const fn=root.requestFullscreen || root.webkitRequestFullscreen;
+  if(!fn) return;
+  try{
+    const r=fn.call(root);
+    if(r && r.catch) r.catch(()=>{});
+  }catch(e){}
+}
 try{
   const urlParams = new URLSearchParams(location.search);
-  // 大会Nowの連携リンクから開いた場合は全画面化を試みる。
-  // ブラウザが自動全画面を禁止している場合は、最初のタップ操作で全画面化する。
-  const taikaFullscreenRequested = urlParams.get('fullscreen') === '1';
-  if(taikaFullscreenRequested){
-    const enterFullscreen = ()=>{
-      const root=document.documentElement;
-      const fn=root.requestFullscreen || root.webkitRequestFullscreen;
-      if(fn && !document.fullscreenElement && !document.webkitFullscreenElement){
-        try{ const r=fn.call(root); if(r&&r.catch) r.catch(()=>{}); }catch(e){}
-      }
-    };
-    setTimeout(enterFullscreen,0);
-    const once=()=>{ enterFullscreen(); document.removeEventListener('pointerdown',once,true); document.removeEventListener('touchend',once,true); };
-    document.addEventListener('pointerdown',once,true);
-    document.addEventListener('touchend',once,true);
-  }
+  // ブラウザ仕様上、URLを開いただけでは全画面化できないため、fullscreen=1 は
+  // 「次のユーザー操作（特に試合開始）で全画面化する」指定として扱う。
+  taikaFullscreenRequested = urlParams.get('fullscreen') === '1';
   const urlEventId = urlParams.get('taikaEvent');
   const urlCourtNo = urlParams.get('court');
   if(urlEventId && urlCourtNo){
@@ -2020,6 +2019,9 @@ reapplyTaikaLink();
 
 refreshPlayerSelects();
 document.getElementById('startBtn').addEventListener('click', ()=>{
+  // Fullscreen API はユーザー操作中に直接呼ぶ必要がある。
+  // 大会Nowの fullscreen=1 連携では「試合開始」のタップを確実な起点にする。
+  enterTaikaFullscreen();
   if(!hasCourtOperationRight()) return;
   // 大会Now連携中は、運営側から現在のコートへ試合が配信されている場合だけ開始できる。
   // 配信待ち（コートデータなし／idle／matchなし）では、DOMのdisabled状態に関係なく開始を拒否する。
