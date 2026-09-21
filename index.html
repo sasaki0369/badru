@@ -2337,7 +2337,11 @@ function showToast(msg){
 function undoLast(){
   if(historyStack.length === 0) return;
   const wasFinishing = state.status !== 'ongoing';
-  state = historyStack.pop();
+  const restoredState = historyStack.pop();
+  // 棄権は得点操作ではないため、棄権直前のmatch状態も一緒に保存して巻き戻す。
+  const matchUndo = restoredState && restoredState.__matchUndo ? restoredState.__matchUndo : null;
+  if(restoredState && Object.prototype.hasOwnProperty.call(restoredState, '__matchUndo')) delete restoredState.__matchUndo;
+  state = restoredState;
   state.rev += 1;
 
   if(wasFinishing){
@@ -2353,17 +2357,29 @@ function undoLast(){
       const lastGame = match.games[match.games.length - 1];
       if(lastGame.gameNumber === state.gameNumber){
         match.games.pop();
-        const w = lastGame.winner;
-        if(w && match.gameWins[w] > 0){
-          match.gameWins[w] -= 1;
+        if(!matchUndo){
+          const w = lastGame.winner;
+          if(w && match.gameWins[w] > 0){
+            match.gameWins[w] -= 1;
+          }
         }
       }
     }
-    match.status = 'ongoing';
-    match.overallWinner = null;
-    match.finishedAt = null;
+    if(matchUndo){
+      match.gameWins = {A:Number(matchUndo.gameWinsA)||0, B:Number(matchUndo.gameWinsB)||0};
+      match.status = matchUndo.status || 'ongoing';
+      match.overallWinner = matchUndo.overallWinner || null;
+      match.finishedAt = matchUndo.finishedAt || null;
+      match.retired = !!matchUndo.retired;
+      match.retiredSide = matchUndo.retiredSide || null;
+    }else{
+      match.status = 'ongoing';
+      match.overallWinner = null;
+      match.finishedAt = null;
+    }
   }
 
+  saveActiveMatchLocal();
   render();
   pushRemote();
 }
@@ -2422,6 +2438,19 @@ function cancelMatchStart(){
 
 function retireMatch(retiredSide){
   if(!state || state.status !== 'ongoing') return;
+  // 棄権操作そのものをUndoできるよう、得点盤面だけでなくmatch側の状態も保存する。
+  const retireUndoState = snapshotState();
+  retireUndoState.__matchUndo = {
+    gameWinsA: match.gameWins.A,
+    gameWinsB: match.gameWins.B,
+    status: match.status,
+    overallWinner: match.overallWinner,
+    finishedAt: match.finishedAt,
+    retired: !!match.retired,
+    retiredSide: match.retiredSide || null
+  };
+  historyStack.push(retireUndoState);
+
   const winnerSide = retiredSide === 'A' ? 'B' : 'A';
   state.status = 'finished';
   state.winner = winnerSide;
