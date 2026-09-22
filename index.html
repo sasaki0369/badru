@@ -2060,6 +2060,18 @@ function calcOfficialRetirementPoints(){
 function notifyTaikaMatchFinished(result){
   const ref = taikaCourtRef();
   if(!ref) return;
+  // バドるの A/B は画面上の LEFT/RIGHT。大会Nowの A/B は配信時の組合せなので、
+  // 左右を入れ替えている場合は結果を配信時の A/B に戻してから送る。
+  if(taikaSidesSwapped && result){
+    result = Object.assign({}, result, {
+      winner: result.winner==='A' ? 'B' : (result.winner==='B' ? 'A' : result.winner),
+      gameWinsA: result.gameWinsB,
+      gameWinsB: result.gameWinsA,
+      teamA: result.teamB,
+      teamB: result.teamA,
+      retiredSide: result.retiredSide==='A' ? 'B' : (result.retiredSide==='B' ? 'A' : result.retiredSide)
+    });
+  }
   lastTaikaMatchId = null;
   const expectedAssignmentId = taikaCourtData && (taikaCourtData.assignmentId || (taikaCourtData.match && taikaCourtData.match.assignmentId));
   const expectedMatchId = taikaCourtData && taikaCourtData.match && (taikaCourtData.match.id || taikaCourtData.match.matchCode || null);
@@ -2073,7 +2085,11 @@ function notifyTaikaMatchFinished(result){
   const gameScores = retirementOfficial
     ? retirementOfficial.games.map(g=>({A:Number(g.A)||0,B:Number(g.B)||0}))
     : ((match && match.games) ? match.games.map(g=>({A:Number(g.score && g.score.A)||0,B:Number(g.score && g.score.B)||0})) : []);
-  const payload = Object.assign({ pointsA, pointsB, officialGames: retirementOfficial ? retirementOfficial.games : null, gameScores }, result, refInfo);
+  const normalizedPointsA = taikaSidesSwapped ? pointsB : pointsA;
+  const normalizedPointsB = taikaSidesSwapped ? pointsA : pointsB;
+  const normalizedOfficialGames = retirementOfficial ? retirementOfficial.games.map(g=>taikaSidesSwapped ? {A:Number(g.B)||0,B:Number(g.A)||0} : {A:Number(g.A)||0,B:Number(g.B)||0}) : null;
+  const normalizedGameScores = gameScores.map(g=>taikaSidesSwapped ? {A:Number(g.B)||0,B:Number(g.A)||0} : {A:Number(g.A)||0,B:Number(g.B)||0});
+  const payload = Object.assign({ pointsA:normalizedPointsA, pointsB:normalizedPointsB, officialGames:normalizedOfficialGames, gameScores:normalizedGameScores }, result, refInfo);
   // 終了通知も同じ配信IDの live 試合にだけ反映する。古いバドる端末が別試合を消すことを防ぐ。
   return ref.transaction(court=>{
     if(!court || court.status!=='live' || !court.match) return;
@@ -2092,7 +2108,9 @@ function mirrorTaikaLiveScore(){
     scoreA: state.score.A,
     scoreB: state.score.B,
     gameWinsA: match.gameWins.A,
-    gameWinsB: match.gameWins.B
+    gameWinsB: match.gameWins.B,
+    // true の場合、scoreA/gameWinsA は配信時 teamB（現在の画面左側）の値。
+    sidesSwapped: !!taikaSidesSwapped
   }).catch(()=>{});
 }
 let qrScanStream=null, qrScanRAF=0, qrDetector=null, qrJsLoaded=false;
