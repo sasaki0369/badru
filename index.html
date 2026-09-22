@@ -1283,8 +1283,16 @@ function loadTaikaLink(){
 function saveTaikaLink(link){
   try{ localStorage.setItem(TAIKA_LINK_KEY, JSON.stringify(link)); }catch(e){}
 }
-let taikaLink = loadTaikaLink(); // {eventId, courtNo, enabled}
-// URLパラメータ（大会Nowが発行する連携リンク）が付いている場合は、それを優先して自動連携する
+// 保存済みの大会Now連携は、ホーム画面から起動したPWA（standalone）のときだけ自動復元する。
+// Safariで通常URLを直接開いた場合は、保存値があっても未連携状態から開始する。
+function isStandaloneApp(){
+  try{
+    return !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true);
+  }catch(e){ return false; }
+}
+const badoruStandalone = isStandaloneApp();
+let taikaLink = badoruStandalone ? loadTaikaLink() : null; // {eventId, courtNo, enabled}
+// URLパラメータ（大会Nowが発行する連携リンク）が付いている場合は、起動形態にかかわらず最優先して自動連携する
 // 例: index.html?taikaEvent=xxxxx&court=3
 let taikaFullscreenRequested = false;
 function enterTaikaFullscreen(){
