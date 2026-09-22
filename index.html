@@ -899,6 +899,23 @@ table.score-grid td.filled.team-b{
 .sheet-btns .print-btn{ background:var(--soft-surface); color:var(--soft-text); border:1px solid var(--soft-border); }
 .sheet-btns .new-btn{ background:linear-gradient(135deg, var(--soft-primary), var(--soft-primary-dark)); color:#fff; }
 
+/* スマホ横画面：試合終了スコアシートの操作ボタンを押しやすくする */
+@media (orientation:landscape) and (max-height:600px){
+  .sheet-btns{
+    gap:12px;
+    margin-top:10px;
+  }
+  .sheet-btns button{
+    min-height:60px;
+    padding:12px 10px;
+    border-radius:16px;
+    font-size:clamp(18px,2.4vw,22px);
+    line-height:1.15;
+    font-weight:800;
+    touch-action:manipulation;
+  }
+}
+
 @page{
   size: A4 landscape;
   margin: 10mm;
