@@ -1012,6 +1012,14 @@ table.score-grid td.filled.team-b{
 /* 大会Nowから受信した所属チーム：選手名を主役にし、所属は控えめな補助情報として表示 */
 .player-club{font-size:clamp(11px,2.2vw,15px);color:var(--soft-text-dim);font-weight:600;line-height:1.25;margin:-.15vh .35vw .75vh;min-height:1.25em;letter-spacing:.01em;}
 .player-club:empty{display:none;}
+
+/* ===== PWA内 QR読み取り ===== */
+.qr-link-btn{width:100%;margin-top:1vh;padding:1.05vh 1vw;border:1px solid #555;border-radius:12px;background:#202020;color:#fff;font-size:clamp(16px,2.1vw,22px);font-weight:800;cursor:pointer}
+.qr-scan-overlay{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.94);align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+.qr-scan-overlay.show{display:flex}.qr-scan-panel{width:min(680px,96vw);background:#111;border:1px solid #444;border-radius:18px;padding:14px;box-sizing:border-box;color:#fff}
+.qr-scan-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.qr-scan-head strong{font-size:20px}.qr-scan-close{border:0;border-radius:10px;padding:9px 16px;background:#333;color:#fff;font-weight:800;font-size:16px}
+.qr-video-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:14px;overflow:hidden}.qr-video-wrap video{width:100%;height:100%;object-fit:cover}.qr-guide{position:absolute;inset:18%;border:4px solid #fff;border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.18);pointer-events:none}
+.qr-scan-msg{min-height:1.5em;margin-top:10px;text-align:center;font-size:15px;line-height:1.45;color:#ddd}
 </style>
 
 </head>
@@ -1124,6 +1132,7 @@ table.score-grid td.filled.team-b{
           <button type="button" data-v="off" class="on">連携しない</button>
           <button type="button" data-v="on">連携する</button>
         </div>
+        <button type="button" class="qr-link-btn" id="scanTaikaQrBtn">大会NowのQRを読み取る</button>
       </div>
       <div class="hint" id="taikaStatusHint">連携すると、大会Nowから配信された次の試合が自動的に反映されます。</div>
     </div>
@@ -1134,6 +1143,14 @@ table.score-grid td.filled.team-b{
     <div class="past-matches" id="pastMatchesWrap" style="display:none;">
       <h3>過去の試合</h3>
       <div id="pastMatchesList"></div>
+    </div>
+  </div>
+
+  <div class="qr-scan-overlay" id="qrScanOverlay" aria-hidden="true">
+    <div class="qr-scan-panel">
+      <div class="qr-scan-head"><strong>大会Now QR読み取り</strong><button type="button" class="qr-scan-close" id="qrScanClose">閉じる</button></div>
+      <div class="qr-video-wrap"><video id="qrScanVideo" playsinline muted></video><div class="qr-guide"></div></div>
+      <div class="qr-scan-msg" id="qrScanMsg">コートカードに表示したQRコードを枠内に入れてください</div>
     </div>
   </div>
 
@@ -2070,6 +2087,71 @@ function mirrorTaikaLiveScore(){
     gameWinsB: match.gameWins.B
   }).catch(()=>{});
 }
+let qrScanStream=null, qrScanRAF=0, qrDetector=null, qrJsLoaded=false;
+const qrScanOverlay=document.getElementById('qrScanOverlay');
+const qrScanVideo=document.getElementById('qrScanVideo');
+const qrScanMsg=document.getElementById('qrScanMsg');
+function stopTaikaQrScan(){
+  if(qrScanRAF){ cancelAnimationFrame(qrScanRAF); qrScanRAF=0; }
+  if(qrScanStream){ qrScanStream.getTracks().forEach(t=>t.stop()); qrScanStream=null; }
+  try{ qrScanVideo.pause(); qrScanVideo.srcObject=null; }catch(e){}
+  qrScanOverlay.classList.remove('show'); qrScanOverlay.setAttribute('aria-hidden','true');
+}
+function applyTaikaQrText(text){
+  let u;
+  try{ u=new URL(String(text||'').trim(), location.href); }catch(e){ throw new Error('QRコードのURLを読み取れませんでした'); }
+  const eventId=u.searchParams.get('taikaEvent');
+  const courtNo=u.searchParams.get('court');
+  if(!eventId || !courtNo || !/^\d+$/.test(courtNo)) throw new Error('大会Nowのコート用QRコードではありません');
+  taikaLink={eventId:eventId,courtNo:courtNo,enabled:true};
+  saveTaikaLink(taikaLink);
+  taikaEventIdInp.value=eventId; taikaCourtNoInp.value=courtNo; setTaikaSeg('on');
+  stopTaikaQrScan();
+  settingsErr.textContent='QRコードを読み取りました。大会Now・コート'+courtNo+'に連携しました。';
+  reapplyTaikaLink();
+}
+function loadJsQR(){
+  if(window.jsQR){ qrJsLoaded=true; return Promise.resolve(); }
+  return new Promise((resolve,reject)=>{
+    const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    sc.onload=()=>{qrJsLoaded=true;resolve();}; sc.onerror=()=>reject(new Error('QR読み取り機能を読み込めませんでした'));
+    document.head.appendChild(sc);
+  });
+}
+async function scanTaikaQrFrame(){
+  if(!qrScanStream) return;
+  try{
+    if(qrDetector){
+      const codes=await qrDetector.detect(qrScanVideo);
+      if(codes && codes[0] && codes[0].rawValue){ applyTaikaQrText(codes[0].rawValue); return; }
+    }else if(window.jsQR && qrScanVideo.readyState>=2){
+      const c=document.createElement('canvas'), w=qrScanVideo.videoWidth, h=qrScanVideo.videoHeight;
+      if(w&&h){ c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(qrScanVideo,0,0,w,h);const im=x.getImageData(0,0,w,h);const code=window.jsQR(im.data,w,h,{inversionAttempts:'dontInvert'});if(code&&code.data){applyTaikaQrText(code.data);return;} }
+    }
+  }catch(e){ if(!qrScanStream) return; }
+  qrScanRAF=requestAnimationFrame(scanTaikaQrFrame);
+}
+async function startTaikaQrScan(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ settingsErr.textContent='この端末ではカメラ読み取りを利用できません'; return; }
+  qrScanOverlay.classList.add('show'); qrScanOverlay.setAttribute('aria-hidden','false'); qrScanMsg.textContent='カメラを準備しています…';
+  try{
+    if('BarcodeDetector' in window){
+      try{ const formats=await BarcodeDetector.getSupportedFormats(); if(formats.includes('qr_code')) qrDetector=new BarcodeDetector({formats:['qr_code']}); }catch(e){}
+    }
+    if(!qrDetector) await loadJsQR();
+    qrScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    qrScanVideo.srcObject=qrScanStream; await qrScanVideo.play();
+    qrScanMsg.textContent='コートカードに表示したQRコードを枠内に入れてください';
+    scanTaikaQrFrame();
+  }catch(e){
+    stopTaikaQrScan();
+    settingsErr.textContent=(e && (e.name==='NotAllowedError'||e.name==='PermissionDeniedError'))?'カメラの使用が許可されていません。iPadの設定でバドるのカメラ利用を許可してください。':'QRコード読み取りを開始できませんでした。';
+  }
+}
+document.getElementById('scanTaikaQrBtn').addEventListener('click',startTaikaQrScan);
+document.getElementById('qrScanClose').addEventListener('click',stopTaikaQrScan);
+qrScanOverlay.addEventListener('click',e=>{if(e.target===qrScanOverlay)stopTaikaQrScan();});
+
 if(taikaLink){
   taikaEventIdInp.value = taikaLink.eventId || '';
   taikaCourtNoInp.value = taikaLink.courtNo || '';
