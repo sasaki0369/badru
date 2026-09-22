@@ -960,6 +960,20 @@ table.score-grid td.filled.team-b{
 .confirm-box .cancel{ background:var(--soft-surface); color:var(--soft-text); border:1px solid var(--soft-border); }
 .confirm-box .ok{ background:linear-gradient(135deg, var(--soft-danger), var(--soft-danger-dark)); color:#fff; }
 
+
+/* ゲーム終了確認：横画面では選手名・次ゲームボタンを改行させず大きく表示 */
+#nextGameOverlay .confirm-box{width:min(96vw,900px);box-sizing:border-box;padding:3.2vh 3vw;}
+#nextGameOverlay #nextGameMsg{font-size:min(4.2vw,4.2vh);line-height:1.35;margin-bottom:2.4vh;}
+#nextGameOverlay .next-game-scoreline{display:block;white-space:nowrap;font-size:1.12em;font-weight:800;margin:.45em 0 .2em;}
+#nextGameOverlay .next-game-count{display:block;white-space:nowrap;font-size:.9em;}
+#nextGameOverlay .row{gap:1.5vw;}
+#nextGameOverlay button{white-space:nowrap;padding:2vh 2.2vw;font-size:min(3.4vw,3.2vh);}
+@media (orientation:landscape){
+  #nextGameOverlay .confirm-box{width:min(94vw,980px);padding:3vh 3vw;}
+  #nextGameOverlay #nextGameMsg{font-size:clamp(22px,3.5vh,34px);}
+  #nextGameOverlay button{font-size:clamp(20px,3.1vh,30px);min-width:0;}
+}
+
 /* 棄権選択：長い選手名でもボタン内に十分な左右余白を確保 */
 #retireOverlay .confirm-box{
   width:min(96vw, 760px);
@@ -2290,7 +2304,9 @@ function finishGame(winTeam){
 function openNextGamePrompt(prevWinTeam){
   const nextGameNumber = state.gameNumber + 1;
   document.getElementById('nextGameMsg').innerHTML =
-    `第${state.gameNumber}ゲーム終了<br><b style="font-size:1.15em;">${fmtTeamName('A')} ${state.score.A} - ${state.score.B} ${fmtTeamName('B')}</b><br>（ゲームカウント ${match.gameWins.A}-${match.gameWins.B}）`;
+    `第${state.gameNumber}ゲーム終了`+
+    `<span class="next-game-scoreline">${fmtTeamName('A')}&nbsp; ${state.score.A} - ${state.score.B} &nbsp;${fmtTeamName('B')}</span>`+
+    `<span class="next-game-count">（ゲームカウント ${match.gameWins.A}-${match.gameWins.B}）</span>`;
   document.getElementById('nextGameBtn').textContent = `第${nextGameNumber}ゲームへ進む`;
   pendingNextGame = { gameNumber: nextGameNumber, prevWinTeam };
   document.getElementById('nextGameOverlay').classList.add('active');
