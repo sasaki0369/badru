@@ -1683,6 +1683,9 @@ function applyTaikaMatchToForm(match){
 let lastTaikaMatchId = null;
 // 大会Nowから同じ試合データが再同期されても、利用者が選んだLEFT/RIGHTを維持する。
 let taikaSidesSwapped = false;
+// 自端末の『開始取消』で live→assigned に戻している間は、
+// 大会Now監視を外部競合と誤判定せず、LEFT/RIGHTの選択状態を維持する。
+let taikaCancelStartInProgress = false;
 function clearTaikaMatchForm(){
   // 配信待ちでは、直前の選手情報だけでなくプレースホルダーも表示しない
   ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
@@ -1868,6 +1871,12 @@ function startTaikaListener(){
     if(state && state.status === 'ongoing'){
       var remoteValid=!!(data && data.status==='live' && data.match);
       var same=taikaCourtDataBeforeUpdate ? sameTaikaAssignment(taikaCourtDataBeforeUpdate,data) : remoteValid;
+      // 自分で『開始取消』を実行した直後は、大会Nowが live→assigned になるのが正常。
+      // この遷移を競合扱いしてフォームを初期化するとLEFT/RIGHTが元に戻るため、
+      // 同一配信のassignedへの遷移だけはそのまま受け入れる。
+      if(taikaCancelStartInProgress && data && data.status==='assigned' && data.match && same){
+        return;
+      }
       if(!remoteValid || !same){
         stopLocalMatchForRemoteConflict('大会Now側の配信状態が変更されたため試合を停止しました。運営画面のコート状態を確認してください。');
       }
@@ -2483,6 +2492,7 @@ function cancelMatchStart(){
   if(taikaLink && taikaLink.enabled && dbReady && db && taikaLink.eventId){
     const eventRef = db.ref('taikainow/' + taikaLink.eventId);
     const courtNo = String(taikaLink.courtNo);
+    taikaCancelStartInProgress = true;
     eventRef.transaction(data=>{
       if(!data) return data;
       const courts = Object.assign({}, data.courts || {});
@@ -2504,7 +2514,9 @@ function cancelMatchStart(){
         applyTaikaMatchToForm(taikaCourtData.match);
       }
       renderTaikaStatusHint(Object.assign({}, taikaCourtData||{}, {status:'assigned', live:null, startedAt:null}));
+      taikaCancelStartInProgress = false;
     }).catch(err=>{
+      taikaCancelStartInProgress = false;
       console.error('開始取消に失敗しました', err);
       alert('開始取消に失敗しました。通信状態を確認して、もう一度お試しください。');
     });
