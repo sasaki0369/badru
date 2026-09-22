@@ -1626,6 +1626,9 @@ function renderTeamClubs(){
 }
 
 document.getElementById('swapSidesBtn').addEventListener('click', ()=>{
+  if(taikaLink && taikaLink.enabled && taikaCourtData && taikaCourtData.match){
+    taikaSidesSwapped = !taikaSidesSwapped;
+  }
   const a1 = document.getElementById('nameA1');
   const a2 = document.getElementById('nameA2');
   const b1 = document.getElementById('nameB1');
@@ -1650,17 +1653,21 @@ function applyTaikaMatchToForm(match){
   Object.entries(ph).forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.placeholder=v; });
   if(firstServerSel) firstServerSel.disabled=false;
   if(firstReceiverSel) firstReceiverSel.disabled=false;
-  document.getElementById('nameA1').value = (match.teamA && match.teamA[0]) || '選手A1';
-  document.getElementById('nameA2').value = (match.teamA && match.teamA[1]) || '選手A2';
-  document.getElementById('nameB1').value = (match.teamB && match.teamB[0]) || '選手B1';
-  document.getElementById('nameB2').value = (match.teamB && match.teamB[1]) || '選手B2';
+  const remoteA = (match.teamA || []).slice();
+  const remoteB = (match.teamB || []).slice();
+  const leftNames = taikaSidesSwapped ? remoteB : remoteA;
+  const rightNames = taikaSidesSwapped ? remoteA : remoteB;
+  document.getElementById('nameA1').value = leftNames[0] || '選手A1';
+  document.getElementById('nameA2').value = leftNames[1] || '選手A2';
+  document.getElementById('nameB1').value = rightNames[0] || '選手B1';
+  document.getElementById('nameB2').value = rightNames[1] || '選手B2';
   // 所属は配信試合に同梱された配列を優先。旧配信データでは大会全体のplayerClubsから補完する。
   const clubMap = (taikaEventDataCache && taikaEventDataCache.playerClubs) || {};
-  const aNames = (match.teamA || []), bNames = (match.teamB || []);
-  currentTeamClubs = {
-    A: (match.teamAClubs || aNames.map(n=>clubMap[n]||'') || ['','']).slice(),
-    B: (match.teamBClubs || bNames.map(n=>clubMap[n]||'') || ['','']).slice()
-  };
+  const remoteAClubs = (match.teamAClubs || remoteA.map(n=>clubMap[n]||'') || ['','']).slice();
+  const remoteBClubs = (match.teamBClubs || remoteB.map(n=>clubMap[n]||'') || ['','']).slice();
+  currentTeamClubs = taikaSidesSwapped
+    ? { A: remoteBClubs, B: remoteAClubs }
+    : { A: remoteAClubs, B: remoteBClubs };
   while(currentTeamClubs.A.length<2) currentTeamClubs.A.push('');
   while(currentTeamClubs.B.length<2) currentTeamClubs.B.push('');
   renderTeamClubs();
@@ -1674,6 +1681,8 @@ function applyTaikaMatchToForm(match){
   refreshPlayerSelects();
 }
 let lastTaikaMatchId = null;
+// 大会Nowから同じ試合データが再同期されても、利用者が選んだLEFT/RIGHTを維持する。
+let taikaSidesSwapped = false;
 function clearTaikaMatchForm(){
   // 配信待ちでは、直前の選手情報だけでなくプレースホルダーも表示しない
   ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
@@ -1876,6 +1885,7 @@ function startTaikaListener(){
       const matchId = data.match.id || (data.match.matchCode + '_' + JSON.stringify(data.match.teamA));
       if(matchId !== lastTaikaMatchId){
         lastTaikaMatchId = matchId;
+        taikaSidesSwapped = false;
         applyTaikaMatchToForm(data.match);
       }
     }
