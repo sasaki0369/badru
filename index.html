@@ -1657,6 +1657,9 @@ function applyTaikaMatchToForm(match){
   refreshPlayerSelects();
 }
 let lastTaikaMatchId = null;
+let lastForcedTerminationAt = 0;
+// 現在バドるが操作対象としている大会Nowの配信ID。古い画面からの更新を遮断する。
+let activeTaikaAssignmentId = null;
 function clearTaikaMatchForm(){
   // 配信待ちでは、直前の選手情報だけでなくプレースホルダーも表示しない
   ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
@@ -1818,6 +1821,31 @@ function startTaikaListener(){
   ref.on('value', snap=>{
     const data = snap.val();
     taikaCourtData = data;
+    const incomingAssignmentId = data && (data.assignmentId || (data.match && data.match.assignmentId)) || null;
+    // forcedTermination が取りこぼされた場合でも、進行中に配信IDが変わったら古い試合を即時停止する。
+    // これにより大会Nowのコート状態だけを唯一の正（SSOT）として扱う。
+    if(state && state.status === 'ongoing' && activeTaikaAssignmentId && incomingAssignmentId !== activeTaikaAssignmentId){
+      state = null; match = null; historyStack = [];
+      clearActiveMatchLocal();
+      showSettings();
+      lastTaikaMatchId = null;
+      activeTaikaAssignmentId = incomingAssignmentId;
+      alert('大会運営側でコートの配信内容が変更されたため、古い試合を終了しました。\n現在の配信内容に同期します。');
+    }
+    // 大会Nowで「既存試合を消去して上書き」された場合は、バドる側の進行中画面も強制終了する。
+    const ft = data && data.forcedTermination;
+    const ftAt = ft && Number(ft.at || 0);
+    if(ftAt && ftAt > lastForcedTerminationAt){
+      lastForcedTerminationAt = ftAt;
+      if(state && state.status === 'ongoing'){
+        state = null; match = null; historyStack = [];
+        clearActiveMatchLocal();
+        showSettings();
+        lastTaikaMatchId = null;
+        const oldName = ft.matchCode ? `「${ft.matchCode}」` : '進行中の試合';
+        alert(`大会運営により${oldName}は強制終了されました。\n新しい配信内容を確認してください。`);
+      }
+    }
     renderTaikaStatusHint(data);
     // 試合中でない時に、新しく配信された試合があれば自動反映する
     // （結果送信→次の配信が同期的に連続することがあるため、設定画面の表示有無では判定しない）
@@ -1827,6 +1855,7 @@ function startTaikaListener(){
     // これにより大会Nowのコートリンクからバドるを開き直しても選手名が空欄にならない。
     if(!data || data.status === 'idle' || !data.match){
       lastTaikaMatchId = null;
+      activeTaikaAssignmentId = null;
       clearTaikaMatchForm();
       return;
     }
@@ -1834,6 +1863,7 @@ function startTaikaListener(){
       const matchId = data.match.id || (data.match.matchCode + '_' + JSON.stringify(data.match.teamA));
       if(matchId !== lastTaikaMatchId){
         lastTaikaMatchId = matchId;
+        activeTaikaAssignmentId = incomingAssignmentId;
         applyTaikaMatchToForm(data.match);
       }
     }
@@ -1938,6 +1968,8 @@ function notifyTaikaMatchLive(){
     if(!court || court.status !== 'assigned' || !court.match) return;
     const actualId = court.match.id || court.match.matchCode || null;
     if(expectedId && actualId && expectedId !== actualId) return;
+    const actualAssignmentId = court.assignmentId || court.match.assignmentId || null;
+    if(activeTaikaAssignmentId && actualAssignmentId && activeTaikaAssignmentId !== actualAssignmentId) return;
     return Object.assign({}, court, {status:'live', live:null, startedAt:now, updatedAt:now});
   }).then(result=>!!(result && result.committed)).catch(err=>{
     console.error('試合開始状態の同期に失敗しました', err);
@@ -1983,18 +2015,42 @@ function notifyTaikaMatchFinished(result){
     ? retirementOfficial.games.map(g=>({A:Number(g.A)||0,B:Number(g.B)||0}))
     : ((match && match.games) ? match.games.map(g=>({A:Number(g.score && g.score.A)||0,B:Number(g.score && g.score.B)||0})) : []);
   const payload = Object.assign({ pointsA, pointsB, officialGames: retirementOfficial ? retirementOfficial.games : null, gameScores }, result, refInfo);
-  ref.update({ status:'idle', match:null, live:null, lastResult: payload, updatedAt: Date.now() }).catch(()=>{});
+  const expectedAssignmentId = activeTaikaAssignmentId;
+  const eventRef = db.ref('taikainow/' + taikaLink.eventId);
+  const courtNo = String(taikaLink.courtNo);
+  return eventRef.transaction(data=>{
+    if(!data) return;
+    const courts = Object.assign({}, data.courts || {});
+    const court = courts[courtNo];
+    if(!court || !court.match) return;
+    const actualAssignmentId = court.assignmentId || court.match.assignmentId || null;
+    // 古いバドる画面から届いた終了通知で、新しく配信された試合を消さない。
+    if(expectedAssignmentId && actualAssignmentId && expectedAssignmentId !== actualAssignmentId) return;
+    courts[courtNo] = Object.assign({}, court, {
+      status:'idle', match:null, live:null, assignmentId:null,
+      lastResult:payload, finishedAt:payload.finishedAt || Date.now(), updatedAt:Date.now()
+    });
+    return Object.assign({}, data, {courts, updatedAt:Date.now()});
+  }).then(r=>!!(r && r.committed)).catch(err=>{console.error('試合終了状態の同期に失敗しました',err);return false;});
 }
 function mirrorTaikaLiveScore(){
   if(!state || !match) return;
   const ref = taikaCourtRef();
   if(!ref) return;
-  ref.child('live').set({
-    scoreA: state.score.A,
-    scoreB: state.score.B,
-    gameWinsA: match.gameWins.A,
-    gameWinsB: match.gameWins.B
-  }).catch(()=>{});
+  const expectedAssignmentId = activeTaikaAssignmentId;
+  ref.transaction(court=>{
+    if(!court || court.status!=='live' || !court.match) return;
+    const actualAssignmentId = court.assignmentId || court.match.assignmentId || null;
+    if(expectedAssignmentId && actualAssignmentId && expectedAssignmentId !== actualAssignmentId) return;
+    const live = Object.assign({}, court.live || {}, {
+      scoreA: state.score.A,
+      scoreB: state.score.B,
+      gameWinsA: match.gameWins.A,
+      gameWinsB: match.gameWins.B,
+      updatedAt:Date.now()
+    });
+    return Object.assign({}, court, {live:live, updatedAt:Date.now()});
+  }).catch(err=>{ console.error('ライブスコア同期に失敗しました',err); });
 }
 if(taikaLink){
   taikaEventIdInp.value = taikaLink.eventId || '';
@@ -2423,6 +2479,8 @@ function cancelMatchStart(){
       const courts = Object.assign({}, data.courts || {});
       const court = courts[courtNo];
       if(!court || !court.match) return data;
+      const actualAssignmentId = court.assignmentId || court.match.assignmentId || null;
+      if(activeTaikaAssignmentId && actualAssignmentId && activeTaikaAssignmentId !== actualAssignmentId) return;
       courts[courtNo] = Object.assign({}, court, {
         status:'assigned',
         live:null,
