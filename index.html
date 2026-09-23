@@ -1452,29 +1452,42 @@ function startCourtLock(){
     if(courtLockOwned && courtLockRef){ courtLockRef.update({heartbeatAt:Date.now()}).catch(()=>{}); }
   },10000);
 }
+function applyTakenOverLiveSnapshot(val){
+  if(!val || !val.settings || !val.state || !val.match || val.match.status !== 'ongoing') return Promise.resolve(false);
+  settings=val.settings;
+  state=val.state;
+  match=val.match;
+  historyStack=[];
+  saveActiveMatchLocal();
+  showBoard();
+  render();
+  suppressRemote=true;
+  // 操作権移行後はコート専用currentMatchも新端末所有として即時更新する。
+  return matchRef.set({deviceId:DEVICE_ID, settings, state, match}).then(()=>{
+    clearTimeout(remoteApplyTimer);
+    remoteApplyTimer=setTimeout(()=>{ suppressRemote=false; },800);
+    return true;
+  });
+}
 function restoreLiveMatchAfterTakeover(){
-  // 進行中のコートで操作権を引き継いだ場合は「試合開始」を押し直すのではなく、
-  // 元端末が保存している currentMatch をそのまま新端末へ復元して採点を継続する。
+  // currentMatch と大会Now側 live.snapshot の2系統から復元する。
+  // Firebaseの反映順による一時的な空読みを考慮し、短時間だけ再試行して待ちっぱなしを防ぐ。
   if(!(taikaLink && taikaLink.enabled) || !taikaCourtData || taikaCourtData.status !== 'live' || !taikaCourtData.match) return Promise.resolve(false);
   if(!dbReady || !matchRef) return Promise.resolve(false);
-  return matchRef.once('value').then(snap=>{
-    const val=snap.val();
-    if(!val || !val.settings || !val.state || !val.match || val.match.status !== 'ongoing') return false;
-    settings=val.settings;
-    state=val.state;
-    match=val.match;
-    historyStack=[];
-    // 以後の同期データは新しい操作端末を所有者として保存する。
-    saveActiveMatchLocal();
-    showBoard();
-    render();
-    suppressRemote=true;
-    return matchRef.set({deviceId:DEVICE_ID, settings, state, match}).then(()=>{
-      clearTimeout(remoteApplyTimer);
-      remoteApplyTimer=setTimeout(()=>{ suppressRemote=false; },800);
-      return true;
+  let attempt=0;
+  function tryRestore(){
+    attempt++;
+    return Promise.all([
+      matchRef.once('value').then(s=>s.val()).catch(()=>null),
+      taikaCourtRef().child('live/snapshot').once('value').then(s=>s.val()).catch(()=>null)
+    ]).then(vals=>{
+      const val=(vals[0] && vals[0].settings && vals[0].state && vals[0].match) ? vals[0] : vals[1];
+      if(val && val.settings && val.state && val.match && val.match.status==='ongoing') return applyTakenOverLiveSnapshot(val);
+      if(attempt<8) return new Promise(resolve=>setTimeout(resolve,250)).then(tryRestore);
+      return false;
     });
-  }).catch(e=>{
+  }
+  return tryRestore().catch(e=>{
     console.warn('操作権移行時の進行中試合復元に失敗しました',e);
     return false;
   });
@@ -1488,7 +1501,9 @@ function takeOverCourtLock(){
     return restoreLiveMatchAfterTakeover();
   }).then(restored=>{
     if(!restored && taikaCourtData && taikaCourtData.status==='live'){
-      settingsErr.textContent='操作権を取得しました。進行中スコアの同期を待っています。';
+      settingsErr.textContent='操作権は取得しましたが、進行中スコアを復元できませんでした。元端末が通信可能か確認し、もう一度「操作権を移す」を押してください。';
+    }else if(restored){
+      settingsErr.textContent='';
     }
   }).catch(()=>{});
 }
@@ -2153,7 +2168,10 @@ function mirrorTaikaLiveScore(){
     gameWinsA: match.gameWins.A,
     gameWinsB: match.gameWins.B,
     // true の場合、scoreA/gameWinsA は配信時 teamB（現在の画面左側）の値。
-    sidesSwapped: !!taikaSidesSwapped
+    sidesSwapped: !!taikaSidesSwapped,
+    // 端末故障・操作権移行時に、別端末が待たずに試合状態を丸ごと復元できるバックアップ。
+    snapshot:{settings:settings,state:state,match:match},
+    updatedAt:Date.now()
   }).catch(()=>{});
 }
 let qrScanStream=null, qrScanRAF=0, qrDetector=null, qrJsLoaded=false;
