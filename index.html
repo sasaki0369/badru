@@ -1362,7 +1362,14 @@ function applyTaikaLinkToMatchRef(){
 /* ============================================================
    状態管理
 ============================================================ */
-const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
+const DEVICE_ID = (()=>{
+  // 同じタブの再読み込みで別端末扱いにならないよう、タブ単位でIDを維持する。
+  try{
+    let id=sessionStorage.getItem('badoru_device_id');
+    if(!id){ id='dev_'+Math.random().toString(36).slice(2,10)+'_'+Date.now().toString(36); sessionStorage.setItem('badoru_device_id',id); }
+    return id;
+  }catch(e){ return 'dev_'+Math.random().toString(36).slice(2,10)+'_'+Date.now().toString(36); }
+})();
 
 // 同一イベント・同一コートの操作権管理（1コート=1操作端末）
 const COURT_LOCK_STALE_MS = 30000;
@@ -1479,7 +1486,7 @@ function applyTakenOverLiveSnapshot(val){
   render();
   suppressRemote=true;
   // 操作権移行後はコート専用currentMatchも新端末所有として即時更新する。
-  return matchRef.set({deviceId:DEVICE_ID, settings, state, match}).then(()=>{
+  return matchRef.set({deviceId:DEVICE_ID, ownerAcquiredAt:(courtLockOwner&&courtLockOwner.deviceId===DEVICE_ID)?courtLockOwner.acquiredAt:null, updatedAt:Date.now(), settings, state, match}).then(()=>{
     clearTimeout(remoteApplyTimer);
     remoteApplyTimer=setTimeout(()=>{ suppressRemote=false; },800);
     return true;
@@ -2285,6 +2292,8 @@ function mirrorTaikaLiveScore(){
   const ref = taikaCourtRef();
   if(!ref) return;
   ref.child('live').set({
+    deviceId: DEVICE_ID,
+    ownerAcquiredAt:(courtLockOwner&&courtLockOwner.deviceId===DEVICE_ID)?courtLockOwner.acquiredAt:null,
     scoreA: state.score.A,
     scoreB: state.score.B,
     gameWinsA: match.gameWins.A,
@@ -2948,12 +2957,11 @@ function retireMatch(retiredSide){
   retirementInProgress = true;
   clearActiveMatchLocal();
   render();
-  // 複数端末で同じ試合を開いている場合、観戦端末の直前のongoing状態が
-  // 棄権直後に反射してfinishedを巻き戻さないよう、確定状態を先に同期する。
-  Promise.resolve(pushRemote()).finally(()=>{
-    retirementInProgress = false;
-    openScoreSheet();
-  });
+  // 棄権確定後の画面遷移は通信完了を待たない。Firebaseが遅延/切断しても端末を固めない。
+  // finished状態はバックグラウンド同期し、短時間だけリモート巻き戻りを抑止する。
+  void Promise.resolve(pushRemote()).finally(()=>{});
+  openScoreSheet();
+  setTimeout(()=>{ retirementInProgress = false; }, 1200);
 }
 
 /* ---------- 描画 ---------- */
@@ -3079,17 +3087,17 @@ function render(){
 
 /* ---------- タップ操作 ---------- */
 sideLeftEl.addEventListener('click', ()=>{
-  if(!hasCourtOperationRight()) return;
+  if(!ensureCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
   awardPoint(state.leftTeam);
 });
 sideRightEl.addEventListener('click', ()=>{
-  if(!hasCourtOperationRight()) return;
+  if(!ensureCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
   awardPoint(otherTeam(state.leftTeam));
 });
 
-document.getElementById('undoBtn').addEventListener('click', ()=>{ if(hasCourtOperationRight()) undoLast(); });
+document.getElementById('undoBtn').addEventListener('click', ()=>{ if(ensureCourtOperationRight()) undoLast(); });
 
 document.getElementById('stopBtn').addEventListener('click', ()=>{
   if(!ensureCourtOperationRight()) return;
@@ -3375,7 +3383,7 @@ function pushRemote(){
   saveActiveMatchLocal();
   if(!dbReady || !matchRef) return Promise.resolve(false);
   suppressRemote = true;
-  const write = matchRef.set({ deviceId: DEVICE_ID, settings, state, match })
+  const write = matchRef.set({ deviceId: DEVICE_ID, ownerAcquiredAt:(courtLockOwner&&courtLockOwner.deviceId===DEVICE_ID)?courtLockOwner.acquiredAt:null, updatedAt:Date.now(), settings, state, match })
     .then(()=>true).catch(e=>{ console.warn('sync失敗', e); return false; });
   clearTimeout(remoteApplyTimer);
   remoteApplyTimer = setTimeout(()=>{ suppressRemote = false; }, 800);
@@ -3395,6 +3403,12 @@ function subscribeMatchRef(){
       if(retirementInProgress) return; // 棄権確定中は他端末の直前状態で巻き戻さない
       if(!val || !val.state || !val.match || !val.match.gameWins) return; // 旧形式データ等は無視
       if(val.deviceId === DEVICE_ID) return;
+      // 現在の操作権所有者以外が遅れて書いたデータは採用しない。
+      // 操作権移行直後に旧端末の書込みが飛び込んでも、スコアを巻き戻さないためのフェンス。
+      if(taikaLink && taikaLink.enabled && courtLockOwner && courtLockOwner.deviceId && val.deviceId !== courtLockOwner.deviceId) return;
+      // 自端末が操作権を持っている間は、他端末由来のcurrentMatchを絶対に盤面へ適用しない。
+      // takeover直後の旧操作端末の遅延書込みによる操作不能・逆戻りを防ぐ。
+      if(hasCourtOperationRight()) return;
       // 観戦中断中はデータ監視だけ継続し、得点盤へ自動復帰しない。
       if(spectatorViewingPaused && !hasCourtOperationRight()) return;
       // suppressRemote は自端末が書き込んだ直後の反射防止用。
