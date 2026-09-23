@@ -1497,7 +1497,8 @@ function restoreLiveMatchAfterTakeover(){
       matchRef.once('value').then(s=>s.val()).catch(()=>null),
       taikaCourtRef().child('live/snapshot').once('value').then(s=>s.val()).catch(()=>null)
     ]).then(vals=>{
-      const val=(vals[0] && vals[0].settings && vals[0].state && vals[0].match) ? vals[0] : vals[1];
+      // 大会Nowのlive.snapshotを優先。currentMatchは端末切替時に一時的に古いことがある。
+      const val=(vals[1] && vals[1].settings && vals[1].state && vals[1].match) ? vals[1] : vals[0];
       if(val && val.settings && val.state && val.match && val.match.status==='ongoing') return applyTakenOverLiveSnapshot(val);
       if(attempt<8) return new Promise(resolve=>setTimeout(resolve,250)).then(tryRestore);
       return false;
@@ -2301,9 +2302,11 @@ function openLinkedLiveCourtImmediately(){
     taikaCourtData=court;
     if(!court || court.status!=='live' || !court.match) return false;
     let src=null;
-    if(remote && remote.settings && remote.state && remote.match &&
+    // 大会Nowでliveになっているコートでは、そのコート自身のlive.snapshotを最優先する。
+    // currentMatchは端末切替の瞬間に古い値/空値になり得るため、復旧の主ソースにはしない。
+    if(court.live && court.live.snapshot && court.live.snapshot.settings && court.live.snapshot.state && court.live.snapshot.match) src=court.live.snapshot;
+    else if(remote && remote.settings && remote.state && remote.match &&
        (remote.match.status==='ongoing' || remote.state.status==='ongoing' || remote.state.status==='finished')) src=remote;
-    else if(court.live && court.live.snapshot && court.live.snapshot.settings && court.live.snapshot.state && court.live.snapshot.match) src=court.live.snapshot;
     if(!src) return false;
     settings=src.settings; state=src.state; match=src.match; historyStack=[];
     taikaSidesSwapped=!!(court.live && court.live.sidesSwapped);
@@ -2679,6 +2682,7 @@ function awardPoint(winTeam){
 }
 
 let pendingFinishTimer = null;
+let retirementInProgress = false;
 
 function finishGame(winTeam){
   state.status = 'finished';
@@ -2904,10 +2908,15 @@ function retireMatch(retiredSide){
   match.retired = true;
   match.retiredSide = retiredSide;
 
+  retirementInProgress = true;
   clearActiveMatchLocal();
   render();
-  pushRemote();
-  openScoreSheet();
+  // 複数端末で同じ試合を開いている場合、観戦端末の直前のongoing状態が
+  // 棄権直後に反射してfinishedを巻き戻さないよう、確定状態を先に同期する。
+  Promise.resolve(pushRemote()).finally(()=>{
+    retirementInProgress = false;
+    openScoreSheet();
+  });
 }
 
 /* ---------- 描画 ---------- */
@@ -3324,14 +3333,16 @@ function renderPastMatches(){
 
 /* ---------- Firebase 同期 ---------- */
 function pushRemote(){
-  if(taikaLink && taikaLink.enabled && !hasCourtOperationRight()) return;
+  if(taikaLink && taikaLink.enabled && !hasCourtOperationRight()) return Promise.resolve(false);
   // Firebaseの接続状態にかかわらず、まず端末内へ保存する
   saveActiveMatchLocal();
-  if(!dbReady || !matchRef) return;
+  if(!dbReady || !matchRef) return Promise.resolve(false);
   suppressRemote = true;
-  matchRef.set({ deviceId: DEVICE_ID, settings, state, match }).catch(e=>console.warn('sync失敗', e));
+  const write = matchRef.set({ deviceId: DEVICE_ID, settings, state, match })
+    .then(()=>true).catch(e=>{ console.warn('sync失敗', e); return false; });
   clearTimeout(remoteApplyTimer);
   remoteApplyTimer = setTimeout(()=>{ suppressRemote = false; }, 800);
+  return write;
 }
 
 // matchRefListenerTarget は先頭付近で宣言済み（TDZ回避のためここでは宣言しない）
@@ -3344,6 +3355,7 @@ function subscribeMatchRef(){
   matchRef.on('value', snap=>{
     try{
       const val = snap.val();
+      if(retirementInProgress) return; // 棄権確定中は他端末の直前状態で巻き戻さない
       if(!val || !val.state || !val.match || !val.match.gameWins) return; // 旧形式データ等は無視
       if(val.deviceId === DEVICE_ID) return;
       // 観戦中断中はデータ監視だけ継続し、得点盤へ自動復帰しない。
