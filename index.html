@@ -2028,14 +2028,18 @@ function startTaikaListener(){
     // 新しい端末で進行中コートのQRを読んだ場合、設定画面で止めず最新スコアを即表示する。
     // currentMatch側の同期がまだ届いていない場合のフォールバックにもなる。
     if(data && data.status==='live' && data.match && !spectatorViewingPaused){
-      // 観戦モードは大会Nowの live.snapshot を毎回受信して得点盤へ反映する。
-      // 得点盤を開いている端末が一台もない状態から再入場する場合は、snapshot が無い/古いケースもあるため
-      // currentMatch も参照する openLinkedLiveCourtImmediately() をフォールバックとして使う。
-      if(!hasCourtOperationRight() || !state || state.status!=='ongoing'){
+      // 大会Nowの live.snapshot を盤面へ適用するのは観戦端末だけ。
+      // 操作端末は自分のローカル状態を唯一の正として扱う。特にゲームポイント直後は
+      // 15点を書いた直後に14点時点の遅延valueイベントが返ることがあり、ここでsnapshotを
+      // 適用すると15→14へ巻き戻って終了処理が止まるため、操作権保持中は絶対に上書きしない。
+      if(!hasCourtOperationRight()){
         const applied=applyTaikaLiveSnapshotForViewing(data);
         if(!applied && (!state || state.status!=='ongoing')) openLinkedLiveCourtImmediately();
       }
     }
+    // 操作端末が最終点を確定して結果画面へ遷移している短い間は、
+    // 直前スコアの遅延イベントを競合判定にも使わない。
+    if(localFinishInProgress && hasCourtOperationRight()) return;
     // 試合中も大会Nowを監視し、コートが未配信になったり別試合へ差し替わった場合は
     // ローカルだけ試合中のまま残さない（split-brain防止）。
     if(state && state.status === 'ongoing'){
@@ -2726,8 +2730,11 @@ function awardPoint(winTeam){
 
 let pendingFinishTimer = null;
 let retirementInProgress = false;
+let localFinishInProgress = false;
 
 function finishGame(winTeam){
+  // 最終点から結果画面を開くまで、Firebaseの遅延イベントで盤面を巻き戻させない。
+  localFinishInProgress = true;
   state.status = 'finished';
   state.winner = winTeam;
   state.finishedAt = Date.now();
@@ -2743,7 +2750,7 @@ function finishGame(winTeam){
 }
 
 function continueAfterFinishedGame(winTeam){
-  if(!state || state.status!=='finished' || !match) return;
+  if(!state || state.status!=='finished' || !match){ localFinishInProgress = false; return; }
   if(match.status==='finished'){
     openScoreSheet();
   }else{
@@ -2752,13 +2759,14 @@ function continueAfterFinishedGame(winTeam){
   }
   // 画面遷移の保険。同期状態に依存せず、ローカルの終了状態だけで復旧する。
   setTimeout(()=>{
-    if(!state || state.status!=='finished' || !match) return;
+    if(!state || state.status!=='finished' || !match){ localFinishInProgress = false; return; }
     const sheetOpen = !!document.getElementById('sheetOverlay')?.classList.contains('active');
     const nextOpen = !!document.getElementById('nextGameOverlay')?.classList.contains('active');
     const confirmOpen = !!document.getElementById('confirmOverlay')?.classList.contains('active');
     if(sheetOpen || nextOpen || confirmOpen) return;
     if(match.status==='finished') openScoreSheet();
     else openNextGamePrompt(winTeam);
+    localFinishInProgress = false;
   }, 700);
 }
 
