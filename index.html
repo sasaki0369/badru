@@ -1398,11 +1398,15 @@ function ensureSpectatorBadge(){
 }
 function stopSpectatorViewing(){
   // 大会・コート連携自体は維持したまま、現在の試合の観戦だけを中断する。
-  // Firebase監視は継続し、設定画面には配信状況を表示するが、得点盤へは自動遷移しない。
+  // 観戦用に復元したstate/matchを残すと openCourtSelector() が「試合中」と判定して
+  // コート選択を拒否するため、端末内の表示状態だけ破棄する（Firebaseには書き込まない）。
   spectatorViewingPaused = true;
   const badge=document.getElementById('spectatorBadge');
   if(badge) badge.style.display='none';
+  state = null; match = null; historyStack = [];
+  clearActiveMatchLocal();
   showSettings();
+  updateCourtBadge();
   if(taikaCourtData) renderTaikaStatusHint(taikaCourtData);
 }
 function setCourtReadOnly(readOnly, owner){
@@ -2098,17 +2102,32 @@ function switchTaikaCourt(courtNo){
   if(!taikaLink || !taikaLink.enabled || courtNo===String(taikaLink.courtNo)){
     document.getElementById('courtSelectOverlay')?.classList.remove('active'); return;
   }
-  stopTaikaListener(); stopCourtLock();
-  taikaLink={eventId:taikaLink.eventId,courtNo,enabled:true};
-  saveTaikaLink(taikaLink);
-  try{ const u=new URL(location.href); u.searchParams.set('court',courtNo); history.replaceState(null,'',u.toString()); }catch(e){}
-  const tc=document.getElementById('taikaCourtNo'); if(tc) tc.value=courtNo;
-  const cn=document.getElementById('courtNumber'); if(cn) cn.value=courtNo;
-  lastTaikaMatchId=null; taikaCourtData=null;
-  clearTaikaMatchForm();
-  renderTaikaStatusHint({status:'idle', match:null});
-  document.getElementById('courtSelectOverlay')?.classList.remove('active');
-  reapplyTaikaLink();
+  const eventId=taikaLink.eventId;
+  const targetRef=(dbReady && db) ? db.ref('taikainow/' + eventId + '/courts/' + courtNo) : null;
+  const proceed=(targetData)=>{
+    const isLive=!!(targetData && targetData.status==='live' && targetData.match);
+    if(isLive){
+      const ok=window.confirm('すでに別端末で試合を開始しています。同じ試合に入りますか？');
+      if(!ok) return;
+      // 明示的に観戦へ入る操作なので、以前の「観戦中断」状態を解除する。
+      spectatorViewingPaused=false;
+    }
+    stopTaikaListener(); stopCourtLock();
+    taikaLink={eventId:eventId,courtNo,enabled:true};
+    saveTaikaLink(taikaLink);
+    try{ const u=new URL(location.href); u.searchParams.set('court',courtNo); history.replaceState(null,'',u.toString()); }catch(e){}
+    const tc=document.getElementById('taikaCourtNo'); if(tc) tc.value=courtNo;
+    const cn=document.getElementById('courtNumber'); if(cn) cn.value=courtNo;
+    lastTaikaMatchId=null; taikaCourtData=null;
+    state=null; match=null; historyStack=[]; clearActiveMatchLocal();
+    clearTaikaMatchForm();
+    renderTaikaStatusHint(targetData || {status:'idle', match:null});
+    document.getElementById('courtSelectOverlay')?.classList.remove('active');
+    reapplyTaikaLink();
+    // liveならlistenerがlive.snapshotを受信し、現在スコアの得点盤へ直接遷移する。
+  };
+  if(!targetRef){ proceed(null); return; }
+  targetRef.once('value').then(snap=>proceed(snap.val())).catch(()=>proceed(null));
 }
 function updateCourtBadge(){
   // 連携中は、設定画面・得点盤面のどちらにいても常に一目でコート番号がわかるよう、
@@ -2645,7 +2664,9 @@ function finishGame(winTeam){
     match.status = 'finished';
     match.overallWinner = winTeam;
     match.finishedAt = state.finishedAt;
-    pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openScoreSheet(); }, 250);
+    // 1ゲーム15点など最終点で、複数端末同期やSafariのタイマー遅延により
+    // finishedの得点盤だけが残る状態を避ける。結果画面は同期待ちにせず即時表示する。
+    openScoreSheet();
   }else{
     pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openNextGamePrompt(winTeam); }, 250);
   }
@@ -3319,6 +3340,10 @@ function subscribeMatchRef(){
       saveActiveMatchLocal();
       showBoard();
       render();
+      // 観戦端末も最終点を受信したら finished の得点盤で止めず、結果画面へ遷移する。
+      if(state && state.status==='finished' && match && match.status==='finished'){
+        openScoreSheet();
+      }
     }catch(e){
       console.warn('リモート同期データの反映に失敗しました（無視します）', e);
     }
