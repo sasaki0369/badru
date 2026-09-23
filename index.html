@@ -1953,6 +1953,23 @@ function stopLocalMatchForRemoteConflict(message){
   clearTaikaMatchForm();
   settingsErr.textContent=message || '大会Now側の配信状態が変更されたため、この端末の試合を停止しました。';
 }
+function applyTaikaLiveSnapshotForViewing(data){
+  // QRから「すでに進行中」のコートへ入った端末でも、操作権の有無に関係なく
+  // 大会Now側に保存された最新スナップショットを即座に得点盤へ復元する。
+  // 観戦端末はrender()しても mirrorTaikaLiveScore/pushRemote が書込みを抑止するため受信専用になる。
+  const snap=data && data.live && data.live.snapshot;
+  if(!snap || !snap.settings || !snap.state || !snap.match) return false;
+  if(snap.match.status!=='ongoing' && snap.state.status!=='ongoing') return false;
+  settings=snap.settings;
+  state=snap.state;
+  match=snap.match;
+  historyStack=[];
+  taikaSidesSwapped=!!(data.live && data.live.sidesSwapped);
+  saveActiveMatchLocal();
+  showBoard();
+  render();
+  return true;
+}
 function startTaikaListener(){
   stopTaikaListener();
   const ref = taikaCourtRef();
@@ -1963,6 +1980,11 @@ function startTaikaListener(){
     const taikaCourtDataBeforeUpdate = taikaCourtData;
     taikaCourtData = data;
     renderTaikaStatusHint(data);
+    // 新しい端末で進行中コートのQRを読んだ場合、設定画面で止めず最新スコアを即表示する。
+    // currentMatch側の同期がまだ届いていない場合のフォールバックにもなる。
+    if((!state || state.status!=='ongoing') && data && data.status==='live' && data.match){
+      applyTaikaLiveSnapshotForViewing(data);
+    }
     // 試合中も大会Nowを監視し、コートが未配信になったり別試合へ差し替わった場合は
     // ローカルだけ試合中のまま残さない（split-brain防止）。
     if(state && state.status === 'ongoing'){
@@ -2209,6 +2231,15 @@ function applyTaikaQrText(text){
   const eventId=u.searchParams.get('taikaEvent');
   const courtNo=u.searchParams.get('court');
   if(!eventId || !courtNo || !/^\d+$/.test(courtNo)) throw new Error('大会Nowのコート用QRコードではありません');
+
+  // 別大会・別コートのQRを読むとき、以前の試合のrev/stateが残っていると
+  // 新しいコートの進行中データを「古い更新」と誤判定して取り込めないため、
+  // 連携先を切り替える前に端末上の旧試合状態だけを破棄する。
+  state=null; match=null; historyStack=[];
+  lastTaikaMatchId=null;
+  taikaSidesSwapped=false;
+  clearActiveMatchLocal();
+
   taikaLink={eventId:eventId,courtNo:courtNo,enabled:true};
   saveTaikaLink(taikaLink);
   taikaEventIdInp.value=eventId; taikaCourtNoInp.value=courtNo; setTaikaSeg('on');
@@ -2561,6 +2592,18 @@ function finishGame(winTeam){
   }else{
     pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openNextGamePrompt(winTeam); }, 250);
   }
+
+  // 最終点到達後の画面遷移を保険でも確認する。iPad/Safariでタイマー処理が
+  // 一時的に遅延・中断しても、得点盤が finished のまま取り残されないようにする。
+  setTimeout(()=>{
+    if(!state || state.status!=='finished' || !match) return;
+    const sheetOpen = !!document.getElementById('sheetOverlay')?.classList.contains('active');
+    const nextOpen = !!document.getElementById('nextGameOverlay')?.classList.contains('active');
+    const confirmOpen = !!document.getElementById('confirmOverlay')?.classList.contains('active');
+    if(sheetOpen || nextOpen || confirmOpen) return;
+    if(match.status==='finished') openScoreSheet();
+    else openNextGamePrompt(winTeam);
+  }, 900);
 }
 
 function openNextGamePrompt(prevWinTeam){
@@ -2673,7 +2716,14 @@ function changeEnd(){
 
 function cancelMatchStart(){
   if(!ensureCourtOperationRight()) return;
-  if(!state || state.status !== 'ongoing') return;
+  // 最終点到達直後は state.status が finished になるため、画面遷移が何らかの理由で
+  // 遅れた場合でも『開始取消』を非常口として必ず使えるようにする。
+  if(!state || (state.status !== 'ongoing' && state.status !== 'finished')) return;
+  if(pendingFinishTimer){ clearTimeout(pendingFinishTimer); pendingFinishTimer=null; }
+  pendingNextGame=null;
+  document.getElementById('nextGameOverlay')?.classList.remove('active');
+  document.getElementById('retireOverlay')?.classList.remove('active');
+  sheetOverlay?.classList.remove('active');
 
   // 大会Now連携時の「開始取消」は配信自体を取り消さない。
   // コートへの配信は保持したまま「配信済み・開始待ち」に戻し、
