@@ -1370,6 +1370,8 @@ let courtLockRef = null;
 let courtLockHeartbeat = null;
 let courtLockOwned = false;
 let courtLockOwner = null;
+// 観戦中断後は、同じ進行中試合の更新を受信しても得点盤へ自動復帰しない。
+let spectatorViewingPaused = false;
 
 function ensureCourtLockOverlay(){
   let ov = document.getElementById('courtLockOverlay');
@@ -1388,10 +1390,20 @@ function ensureSpectatorBadge(){
   badge = document.createElement('div');
   badge.id = 'spectatorBadge';
   badge.style.cssText = 'display:none;position:fixed;left:14px;top:14px;z-index:99999;background:rgba(25,25,25,.88);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:8px 12px;font:700 13px/1 system-ui,-apple-system,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.28);backdrop-filter:blur(6px);align-items:center;gap:9px;pointer-events:auto';
-  badge.innerHTML = '<span>観戦モード</span><button id="spectatorTakeover" style="border:0;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;background:#ffcc00;color:#111;cursor:pointer">操作権を移す</button>';
+  badge.innerHTML = '<span>観戦モード</span><button id="spectatorTakeover" style="border:0;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;background:#ffcc00;color:#111;cursor:pointer">操作権を移す</button><button id="spectatorStop" style="border:1px solid rgba(255,255,255,.55);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;background:transparent;color:#fff;cursor:pointer">観戦中断</button>';
   document.body.appendChild(badge);
   document.getElementById('spectatorTakeover').addEventListener('click', takeOverCourtLock);
+  document.getElementById('spectatorStop').addEventListener('click', stopSpectatorViewing);
   return badge;
+}
+function stopSpectatorViewing(){
+  // 大会・コート連携自体は維持したまま、現在の試合の観戦だけを中断する。
+  // Firebase監視は継続し、設定画面には配信状況を表示するが、得点盤へは自動遷移しない。
+  spectatorViewingPaused = true;
+  const badge=document.getElementById('spectatorBadge');
+  if(badge) badge.style.display='none';
+  showSettings();
+  if(taikaCourtData) renderTaikaStatusHint(taikaCourtData);
 }
 function setCourtReadOnly(readOnly, owner){
   courtLockOwned = !readOnly;
@@ -1400,7 +1412,7 @@ function setCourtReadOnly(readOnly, owner){
   const ov = ensureCourtLockOverlay();
   ov.style.display = 'none';
   const badge = ensureSpectatorBadge();
-  badge.style.display = readOnly ? 'flex' : 'none';
+  badge.style.display = (readOnly && !spectatorViewingPaused) ? 'flex' : 'none';
   const startBtn = document.getElementById('startBtn');
   if(startBtn && taikaLink && taikaLink.enabled){
     // 操作権だけでなく、実際に『配信済み・開始待ち』の試合がある時だけ開始可能。
@@ -1493,6 +1505,7 @@ function restoreLiveMatchAfterTakeover(){
   });
 }
 function takeOverCourtLock(){
+  spectatorViewingPaused = false;
   const ref=courtLockPathRef(); if(!ref) return;
   const now=Date.now();
   ref.set({deviceId:DEVICE_ID, acquiredAt:now, heartbeatAt:now}).then(()=>{
@@ -1982,8 +1995,13 @@ function startTaikaListener(){
     renderTaikaStatusHint(data);
     // 新しい端末で進行中コートのQRを読んだ場合、設定画面で止めず最新スコアを即表示する。
     // currentMatch側の同期がまだ届いていない場合のフォールバックにもなる。
-    if((!state || state.status!=='ongoing') && data && data.status==='live' && data.match){
-      applyTaikaLiveSnapshotForViewing(data);
+    if(data && data.status==='live' && data.match && !spectatorViewingPaused){
+      // 観戦モードは大会Nowの live.snapshot を毎回受信して得点盤へ反映する。
+      // 以前は『まだ試合中でない時だけ』復元していたため、一度得点盤を開いた後の
+      // スコア更新がここでは無視され、currentMatch側の通知状況によって表示が止まることがあった。
+      if(!hasCourtOperationRight() || !state || state.status!=='ongoing'){
+        applyTaikaLiveSnapshotForViewing(data);
+      }
     }
     // 試合中も大会Nowを監視し、コートが未配信になったり別試合へ差し替わった場合は
     // ローカルだけ試合中のまま残さない（split-brain防止）。
@@ -2225,6 +2243,41 @@ function stopTaikaQrScan(){
   try{ qrScanVideo.pause(); qrScanVideo.srcObject=null; }catch(e){}
   qrScanOverlay.classList.remove('show'); qrScanOverlay.setAttribute('aria-hidden','true');
 }
+function openLinkedLiveCourtImmediately(){
+  spectatorViewingPaused = false;
+  // QRで既に進行中のコートを読み込んだ場合は、設定画面を経由せず得点盤へ直行する。
+  // 大会Now側live.snapshotとバドる側currentMatchの両方を同時に確認し、
+  // より完全なcurrentMatchを優先して復元する。操作権の有無は画面表示とは分離し、
+  // ロック所有者でなければ観戦モード、取得後はそのまま操作可能にする。
+  if(!(taikaLink && taikaLink.enabled) || !dbReady || !matchRef) return Promise.resolve(false);
+  const cref=taikaCourtRef();
+  if(!cref) return Promise.resolve(false);
+  return Promise.all([
+    cref.once('value').then(s=>s.val()).catch(()=>null),
+    matchRef.once('value').then(s=>s.val()).catch(()=>null)
+  ]).then(([court,remote])=>{
+    taikaCourtData=court;
+    if(!court || court.status!=='live' || !court.match) return false;
+    let src=null;
+    if(remote && remote.settings && remote.state && remote.match &&
+       (remote.match.status==='ongoing' || remote.state.status==='ongoing' || remote.state.status==='finished')) src=remote;
+    else if(court.live && court.live.snapshot && court.live.snapshot.settings && court.live.snapshot.state && court.live.snapshot.match) src=court.live.snapshot;
+    if(!src) return false;
+    settings=src.settings; state=src.state; match=src.match; historyStack=[];
+    taikaSidesSwapped=!!(court.live && court.live.sidesSwapped);
+    saveActiveMatchLocal();
+    showBoard();
+    render();
+    // startCourtLock()のvalueイベントで最終的な観戦/操作表示が確定するが、
+    // 既存ロックが別端末なら即時に観戦扱いにして誤操作を防ぐ。
+    return courtLockPathRef().once('value').then(s=>{
+      const owner=s.val();
+      if(owner && owner.deviceId!==DEVICE_ID && (!owner.heartbeatAt || Date.now()-owner.heartbeatAt<=COURT_LOCK_STALE_MS)) setCourtReadOnly(true,owner);
+      return true;
+    }).catch(()=>true);
+  }).catch(e=>{ console.warn('QR読込後の進行中試合復元に失敗しました',e); return false; });
+}
+
 function applyTaikaQrText(text){
   let u;
   try{ u=new URL(String(text||'').trim(), location.href); }catch(e){ throw new Error('QRコードのURLを読み取れませんでした'); }
@@ -2246,6 +2299,10 @@ function applyTaikaQrText(text){
   stopTaikaQrScan();
   settingsErr.textContent='QRコードを読み取りました。大会Now・コート'+courtNo+'に連携しました。';
   reapplyTaikaLink();
+  // 進行中ならQR読込完了と同時にスコア画面へ。既存操作端末があれば観戦モードで開く。
+  openLinkedLiveCourtImmediately().then(opened=>{
+    if(opened) settingsErr.textContent='';
+  });
 }
 function loadJsQR(){
   if(window.jsQR){ qrJsLoaded=true; return Promise.resolve(); }
@@ -3240,7 +3297,12 @@ function subscribeMatchRef(){
       const val = snap.val();
       if(!val || !val.state || !val.match || !val.match.gameWins) return; // 旧形式データ等は無視
       if(val.deviceId === DEVICE_ID) return;
-      if(suppressRemote) return;
+      // 観戦中断中はデータ監視だけ継続し、得点盤へ自動復帰しない。
+      if(spectatorViewingPaused && !hasCourtOperationRight()) return;
+      // suppressRemote は自端末が書き込んだ直後の反射防止用。
+      // 観戦モードでは自端末から書き込まないため、過去のタイマーが残っていても
+      // 操作端末からの更新を止めない。
+      if(suppressRemote && hasCourtOperationRight()) return;
       // 観戦端末は操作端末の状態を一方向で受信する。ゲーム終了時(state=finished)も
       // 15/21点の最終スコアを受け取れるよう、match.statusだけでは除外しない。
       // 同一revでも ongoing→finished / match finished の状態変化は取り込む。
