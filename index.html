@@ -2598,6 +2598,14 @@ function startNewMatch(){
 }
 
 function startGame(gameNumber, leftTeam, firstServerName, firstReceiverName){
+  // 前ゲームの終了処理フラグを必ず解除してから次ゲームを構築する。
+  // これが残ると、大会Now/Firebase監視が「終了処理中」と判断し続け、
+  // 第2ゲーム以降の操作・同期が止まることがある。
+  localFinishInProgress = false;
+  retirementInProgress = false;
+  clearTimeout(pendingFinishTimer);
+  pendingFinishTimer = null;
+
   const serverTeam = teamOf(firstServerName) || 'A'; // 万一名前が一致しない場合でもクラッシュしないようフォールバック
   const receiverTeam = otherTeam(serverTeam);
 
@@ -2710,22 +2718,41 @@ function awardPoint(winTeam){
   }
 
   const w = checkWinner();
-  let gameFinished = false;
   if(w){
+    // ゲームポイントは通常得点とは別経路で確定する。
+    // Firebase・観戦端末・render()の成否を、操作端末の終了画面遷移の前提にしない。
+    // これにより複数端末利用時でも 14→15 の最終点で盤面が停止しない。
     finishGame(w);
-    gameFinished = true;
+    state.rev += 1;
+
+    // まずローカル表示を15点へ更新する。描画に問題があっても終了処理は続行する。
+    try{ render(); }catch(e){ console.warn('最終点の盤面描画に失敗しましたが終了処理を継続します', e); }
+
+    // 終了UIを最優先で同期的に開く。Firebase応答やsetTimeoutを待たない。
+    try{
+      if(match.status==='finished') openScoreSheet();
+      else openNextGamePrompt(w);
+    }catch(e){
+      console.error('ゲーム終了画面の表示に失敗しました', e);
+      // DOMの一時的な競合に備え、次のイベントループでもう一度だけ復旧する。
+      setTimeout(()=>{
+        try{
+          if(match && match.status==='finished') openScoreSheet();
+          else if(state && state.status==='finished') openNextGamePrompt(w);
+        }catch(err){ console.error('ゲーム終了画面の再表示にも失敗しました', err); }
+      },0);
+    }
+
+    // 最終状態の同期は完全にバックグラウンド。画面遷移をブロックしない。
+    try{ void pushRemote(); }catch(e){ console.warn('最終点の同期開始に失敗しました', e); }
+    return;
   }
 
-  // 最終点を含め、操作端末の画面遷移はFirebaseの完了を待たない。
-  // 先にローカル状態を確定・保存して即時描画し、同期はバックグラウンドで行う。
-  // これにより1ゲーム15点/21点等の終了時に、複数端末同期の待ちで画面が止まらない。
+  // 通常得点だけ従来の描画・同期経路を通す。
   state.rev += 1;
   saveActiveMatchLocal();
   render();
   void pushRemote();
-  if(gameFinished){
-    continueAfterFinishedGame(w);
-  }
 }
 
 let pendingFinishTimer = null;
@@ -2785,13 +2812,27 @@ let pendingNextGame = null;
 document.getElementById('nextGameBtn').addEventListener('click', ()=>{
   if(!pendingNextGame) return;
   const { gameNumber, prevWinTeam } = pendingNextGame;
+
+  // 次ゲームへの移行はローカルを最優先する。
+  // Firebaseや観戦端末からの応答を待たず、0-0の次ゲームを即座に表示する。
+  const prevLeftTeam = state.leftTeam;
   pendingNextGame = null;
   document.getElementById('nextGameOverlay').classList.remove('active');
+  localFinishInProgress = false;
 
-  const newLeftTeam = otherTeam(state.leftTeam); // ゲームごとにエンドを交代
+  const newLeftTeam = otherTeam(prevLeftTeam); // ゲームごとにエンドを交代
   const newFirstServer = settings.players[prevWinTeam][0]; // 前ゲームの勝者側が次ゲームの最初のサーバー
   const newFirstReceiver = settings.players[otherTeam(prevWinTeam)][0];
-  startGame(gameNumber, newLeftTeam, newFirstServer, newFirstReceiver);
+
+  try{
+    startGame(gameNumber, newLeftTeam, newFirstServer, newFirstReceiver);
+  }catch(e){
+    console.error('次ゲームへの移行に失敗しました', e);
+    // オーバーレイだけ消えて操作不能になることを避けるため、再び移行画面を出す。
+    pendingNextGame = { gameNumber, prevWinTeam };
+    document.getElementById('nextGameOverlay').classList.add('active');
+    showToast('次ゲームへの移行に失敗しました。もう一度押してください');
+  }
 });
 
 function undoFinalPoint(){
@@ -3239,6 +3280,9 @@ function gameSectionHtml(gameIndexLabel, game){
 }
 
 function openScoreSheet(){
+  // 結果画面まで到達した時点で最終点処理のローカルロックを解除する。
+  localFinishInProgress = false;
+  clearTimeout(pendingFinishTimer); pendingFinishTimer = null;
   const allGames = match.games;
 
   const startDt = new Date(match.startedAt);
