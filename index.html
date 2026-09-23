@@ -1559,7 +1559,11 @@ function saveActiveMatchLocal(){
   try{
     if(settings && match && state && match.status === 'ongoing'){
       localStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify({
-        settings, match, state, historyStack, savedAt: Date.now()
+        settings, match, state, historyStack, savedAt: Date.now(),
+        // ローカル復元データを大会・コートに必ず紐づける。
+        // 別taikaEventの試合へ切り替えた際に過去大会の得点を誤復元しないために使用する。
+        taikaEventId: (taikaLink && taikaLink.enabled) ? String(taikaLink.eventId || '') : '',
+        taikaCourtNo: (taikaLink && taikaLink.enabled) ? String(taikaLink.courtNo || '') : ''
       }));
     }else{
       localStorage.removeItem(ACTIVE_MATCH_STORAGE_KEY);
@@ -1575,6 +1579,22 @@ function restoreActiveMatchLocal(){
     if(!raw) return false;
     const saved = JSON.parse(raw);
     if(!saved || !saved.settings || !saved.match || !saved.state || saved.match.status !== 'ongoing'){
+      clearActiveMatchLocal();
+      return false;
+    }
+    // 大会Now連携中は、保存時の大会ID・コート番号が現在の連携先と完全一致する場合だけ復元する。
+    // 旧バージョンが保存した紐づけ情報なしのデータも、安全側で破棄する。
+    if(taikaLink && taikaLink.enabled){
+      const currentEvent=String(taikaLink.eventId || '');
+      const currentCourt=String(taikaLink.courtNo || '');
+      const savedEvent=String(saved.taikaEventId || '');
+      const savedCourt=String(saved.taikaCourtNo || '');
+      if(!savedEvent || !savedCourt || savedEvent!==currentEvent || savedCourt!==currentCourt){
+        clearActiveMatchLocal();
+        return false;
+      }
+    }else if(saved.taikaEventId || saved.taikaCourtNo){
+      // 大会Now未連携で起動した場合も、過去の大会Now試合は復元しない。
       clearActiveMatchLocal();
       return false;
     }
@@ -2419,7 +2439,12 @@ segTaikaLink.addEventListener('click', e=>{
 [taikaEventIdInp, taikaCourtNoInp].forEach(inp=>{
   inp.addEventListener('change', ()=>{
     if(!taikaLink || !taikaLink.enabled) return;
-    taikaLink = { eventId: taikaEventIdInp.value.trim(), courtNo: taikaCourtNoInp.value.trim(), enabled: true };
+    const nextLink = { eventId: taikaEventIdInp.value.trim(), courtNo: taikaCourtNoInp.value.trim(), enabled: true };
+    const linkChanged = !taikaLink || String(taikaLink.eventId||'')!==String(nextLink.eventId||'') || String(taikaLink.courtNo||'')!==String(nextLink.courtNo||'');
+    if(linkChanged){
+      state=null; match=null; historyStack=[]; lastTaikaMatchId=null; taikaSidesSwapped=false; clearActiveMatchLocal();
+    }
+    taikaLink = nextLink;
     saveTaikaLink(taikaLink);
     reapplyTaikaLink();
   });
