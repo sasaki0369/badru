@@ -2160,6 +2160,9 @@ function notifyTaikaMatchFinished(result){
 }
 function mirrorTaikaLiveScore(){
   if(!state || !match) return;
+  // 大会Nowのlive情報を書き換えられるのは、そのコートの操作権を持つ端末だけ。
+  // 観戦端末がrender()のたびに自分の古い状態を書き戻すと、スコア逆戻り・同期停止の原因になる。
+  if(taikaLink && taikaLink.enabled && !hasCourtOperationRight()) return;
   const ref = taikaCourtRef();
   if(!ref) return;
   ref.child('live').set({
@@ -3168,10 +3171,16 @@ function subscribeMatchRef(){
     try{
       const val = snap.val();
       if(!val || !val.state || !val.match || !val.match.gameWins) return; // 旧形式データ等は無視
-      if(val.match.status !== 'ongoing') return; // 終了・中止済みの試合は復元しない（開き直したら新規試合へ）
       if(val.deviceId === DEVICE_ID) return;
       if(suppressRemote) return;
-      if(state && val.state.rev <= state.rev) return;
+      // 観戦端末は操作端末の状態を一方向で受信する。ゲーム終了時(state=finished)も
+      // 15/21点の最終スコアを受け取れるよう、match.statusだけでは除外しない。
+      // 同一revでも ongoing→finished / match finished の状態変化は取り込む。
+      if(state && val.state.rev < state.rev) return;
+      if(state && val.state.rev === state.rev &&
+         val.state.status === state.status && val.match.status === match.status &&
+         Number(val.state.score && val.state.score.A) === Number(state.score && state.score.A) &&
+         Number(val.state.score && val.state.score.B) === Number(state.score && state.score.B)) return;
 
       settings = val.settings;
       state = val.state;
