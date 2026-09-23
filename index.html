@@ -1452,12 +1452,44 @@ function startCourtLock(){
     if(courtLockOwned && courtLockRef){ courtLockRef.update({heartbeatAt:Date.now()}).catch(()=>{}); }
   },10000);
 }
+function restoreLiveMatchAfterTakeover(){
+  // 進行中のコートで操作権を引き継いだ場合は「試合開始」を押し直すのではなく、
+  // 元端末が保存している currentMatch をそのまま新端末へ復元して採点を継続する。
+  if(!(taikaLink && taikaLink.enabled) || !taikaCourtData || taikaCourtData.status !== 'live' || !taikaCourtData.match) return Promise.resolve(false);
+  if(!dbReady || !matchRef) return Promise.resolve(false);
+  return matchRef.once('value').then(snap=>{
+    const val=snap.val();
+    if(!val || !val.settings || !val.state || !val.match || val.match.status !== 'ongoing') return false;
+    settings=val.settings;
+    state=val.state;
+    match=val.match;
+    historyStack=[];
+    // 以後の同期データは新しい操作端末を所有者として保存する。
+    saveActiveMatchLocal();
+    showBoard();
+    render();
+    suppressRemote=true;
+    return matchRef.set({deviceId:DEVICE_ID, settings, state, match}).then(()=>{
+      clearTimeout(remoteApplyTimer);
+      remoteApplyTimer=setTimeout(()=>{ suppressRemote=false; },800);
+      return true;
+    });
+  }).catch(e=>{
+    console.warn('操作権移行時の進行中試合復元に失敗しました',e);
+    return false;
+  });
+}
 function takeOverCourtLock(){
   const ref=courtLockPathRef(); if(!ref) return;
   const now=Date.now();
   ref.set({deviceId:DEVICE_ID, acquiredAt:now, heartbeatAt:now}).then(()=>{
     try{ ref.onDisconnect().remove(); }catch(e){}
     setCourtReadOnly(false, {deviceId:DEVICE_ID});
+    return restoreLiveMatchAfterTakeover();
+  }).then(restored=>{
+    if(!restored && taikaCourtData && taikaCourtData.status==='live'){
+      settingsErr.textContent='操作権を取得しました。進行中スコアの同期を待っています。';
+    }
   }).catch(()=>{});
 }
 function hasCourtOperationRight(){
