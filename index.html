@@ -1497,7 +1497,9 @@ function takeOverCourtLock(){
   const now=Date.now();
   ref.set({deviceId:DEVICE_ID, acquiredAt:now, heartbeatAt:now}).then(()=>{
     try{ ref.onDisconnect().remove(); }catch(e){}
-    setCourtReadOnly(false, {deviceId:DEVICE_ID});
+    setCourtReadOnly(false, {deviceId:DEVICE_ID, acquiredAt:now, heartbeatAt:now});
+    courtLockOwned=true;
+    courtLockOwner={deviceId:DEVICE_ID, acquiredAt:now, heartbeatAt:now};
     return restoreLiveMatchAfterTakeover();
   }).then(restored=>{
     if(!restored && taikaCourtData && taikaCourtData.status==='live'){
@@ -1508,7 +1510,21 @@ function takeOverCourtLock(){
   }).catch(()=>{});
 }
 function hasCourtOperationRight(){
-  return !(taikaLink && taikaLink.enabled) || courtLockOwned;
+  if(!(taikaLink && taikaLink.enabled)) return true;
+  // ロックvalueイベントと画面操作のタイミングが前後しても、
+  // 現在のロック所有者が自端末なら操作を止めない。
+  return !!(courtLockOwned || (courtLockOwner && courtLockOwner.deviceId===DEVICE_ID));
+}
+function ensureCourtOperationRight(){
+  if(hasCourtOperationRight()) return true;
+  // 観戦端末からの誤操作は防ぐ一方、操作権取得直後の一時的な
+  // courtLockOwned反映遅延で主要ボタンが無反応になることを避ける。
+  const badge=document.getElementById('spectatorBadge');
+  if(badge && badge.style.display==='none' && courtLockOwner && courtLockOwner.deviceId===DEVICE_ID){
+    courtLockOwned=true;
+    return true;
+  }
+  return false;
 }
 
 
@@ -2656,6 +2672,7 @@ function changeEnd(){
 }
 
 function cancelMatchStart(){
+  if(!ensureCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
 
   // 大会Now連携時の「開始取消」は配信自体を取り消さない。
@@ -2702,6 +2719,7 @@ function cancelMatchStart(){
 }
 
 function retireMatch(retiredSide){
+  if(!ensureCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
   // 棄権操作そのものをUndoできるよう、得点盤面だけでなくmatch側の状態も保存する。
   const retireUndoState = snapshotState();
@@ -2872,14 +2890,14 @@ sideRightEl.addEventListener('click', ()=>{
 document.getElementById('undoBtn').addEventListener('click', ()=>{ if(hasCourtOperationRight()) undoLast(); });
 
 document.getElementById('stopBtn').addEventListener('click', ()=>{
-  if(!hasCourtOperationRight()) return;
+  if(!ensureCourtOperationRight()) return;
   openConfirm('試合の開始を取り消しますか？<br><span style="font-size:.78em;font-weight:500;">入力したスコアは破棄され、試合設定画面に戻ります。配信は維持されます。</span>', ()=>{
     cancelMatchStart();
   });
 });
 
 document.getElementById('retireBtn').addEventListener('click', ()=>{
-  if(!hasCourtOperationRight()) return;
+  if(!ensureCourtOperationRight()) return;
   if(!state || state.status !== 'ongoing') return;
   document.getElementById('retireA').textContent = fmtTeamName('A') + ' が棄権';
   document.getElementById('retireB').textContent = fmtTeamName('B') + ' が棄権';
