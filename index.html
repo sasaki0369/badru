@@ -2001,10 +2001,11 @@ function startTaikaListener(){
     // currentMatch側の同期がまだ届いていない場合のフォールバックにもなる。
     if(data && data.status==='live' && data.match && !spectatorViewingPaused){
       // 観戦モードは大会Nowの live.snapshot を毎回受信して得点盤へ反映する。
-      // 以前は『まだ試合中でない時だけ』復元していたため、一度得点盤を開いた後の
-      // スコア更新がここでは無視され、currentMatch側の通知状況によって表示が止まることがあった。
+      // 得点盤を開いている端末が一台もない状態から再入場する場合は、snapshot が無い/古いケースもあるため
+      // currentMatch も参照する openLinkedLiveCourtImmediately() をフォールバックとして使う。
       if(!hasCourtOperationRight() || !state || state.status!=='ongoing'){
-        applyTaikaLiveSnapshotForViewing(data);
+        const applied=applyTaikaLiveSnapshotForViewing(data);
+        if(!applied && (!state || state.status!=='ongoing')) openLinkedLiveCourtImmediately();
       }
     }
     // 試合中も大会Nowを監視し、コートが未配信になったり別試合へ差し替わった場合は
@@ -2099,10 +2100,32 @@ function openCourtSelector(){
 }
 function switchTaikaCourt(courtNo){
   courtNo=String(courtNo);
-  if(!taikaLink || !taikaLink.enabled || courtNo===String(taikaLink.courtNo)){
+  if(!taikaLink || !taikaLink.enabled){
     document.getElementById('courtSelectOverlay')?.classList.remove('active'); return;
   }
   const eventId=taikaLink.eventId;
+  // 現在選択中のコートでも、設定画面へ戻った後に大会Now上では live のままなら
+  // その試合へ再入場できるようにする。全てのバドる端末が得点盤を閉じても、
+  // 大会Nowの live 状態 + currentMatch/live.snapshot から得点盤へ復帰できる。
+  if(courtNo===String(taikaLink.courtNo)){
+    const currentRef=(dbReady && db) ? db.ref('taikainow/' + eventId + '/courts/' + courtNo) : null;
+    if(!currentRef){ document.getElementById('courtSelectOverlay')?.classList.remove('active'); return; }
+    currentRef.once('value').then(snap=>{
+      const currentData=snap.val();
+      if(currentData && currentData.status==='live' && currentData.match){
+        const ok=window.confirm('このコートでは試合が進行中です。同じ試合に入りますか？');
+        if(!ok) return;
+        spectatorViewingPaused=false;
+        document.getElementById('courtSelectOverlay')?.classList.remove('active');
+        openLinkedLiveCourtImmediately().then(opened=>{
+          if(!opened) settingsErr.textContent='進行中の試合データを取得できませんでした。もう一度お試しください。';
+        });
+      }else{
+        document.getElementById('courtSelectOverlay')?.classList.remove('active');
+      }
+    }).catch(()=>document.getElementById('courtSelectOverlay')?.classList.remove('active'));
+    return;
+  }
   const targetRef=(dbReady && db) ? db.ref('taikainow/' + eventId + '/courts/' + courtNo) : null;
   const proceed=(targetData)=>{
     const isLive=!!(targetData && targetData.status==='live' && targetData.match);
@@ -2399,6 +2422,11 @@ segTaikaLink.addEventListener('click', e=>{
   });
 });
 reapplyTaikaLink();
+// PWA/ブラウザを開き直した時点ですでに連携コートが live なら、
+// ローカルに得点盤が残っていなくても現在の試合へ復帰できるようにする。
+if(taikaLink && taikaLink.enabled && !state && !spectatorViewingPaused){
+  setTimeout(()=>{ openLinkedLiveCourtImmediately(); }, 0);
+}
 
 refreshPlayerSelects();
 document.getElementById('startBtn').addEventListener('click', ()=>{
