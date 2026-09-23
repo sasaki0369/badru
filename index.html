@@ -450,9 +450,18 @@ html,body{
 #settings.taika-locked .field-format,
 #settings.taika-locked .field-points,
 #settings.taika-locked .field-deuce,
-#settings.taika-locked .field-tournament-info,
-#settings.taika-locked .taika-link-inputs{
+#settings.taika-locked .field-tournament-info{
   display:none;
+}
+/* 大会Now連携済みでも、別大会・別コートへ切り替えられるようQR読込ボタンは残す */
+#settings.taika-locked .taika-link-inputs .two-col,
+#settings.taika-locked .taika-link-inputs .seg{
+  display:none;
+}
+#settings.taika-locked .taika-link-inputs #scanTaikaQrBtn{
+  display:block;
+  width:100%;
+  margin-top:0;
 }
 #settings.taika-locked .field-names input[type="text"]{
   background:var(--soft-surface-dim, #f0eee9);
@@ -1957,6 +1966,8 @@ function applyTaikaLockUI(){
   const locked = !!(taikaLink && taikaLink.enabled);
   const settingsDiv = document.getElementById('settings'); // settingsEl定義前にも呼ばれるためTDZ回避で直接取得
   if(settingsDiv) settingsDiv.classList.toggle('taika-locked', locked);
+  const scanBtn = document.getElementById('scanTaikaQrBtn');
+  if(scanBtn) scanBtn.textContent = locked ? '別の大会NowのQRを読み取る' : '大会NowのQRを読み取る';
   ['nameA1','nameA2','nameB1','nameB2'].forEach(id=>{
     const inp = document.getElementById(id);
     if(inp) inp.readOnly = locked;
