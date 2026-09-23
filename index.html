@@ -2703,17 +2703,15 @@ function awardPoint(winTeam){
     gameFinished = true;
   }
 
-  // 最終点も通常の得点と同じ順序で、まず15点/21点の状態を描画・保存・同期する。
-  // 結果画面への遷移を先に行うと、複数端末時に14点のcurrentMatchが残ったまま
-  // 大会Nowだけ15点になる競合が起こり得るため、最終点の確定を先行させる。
+  // 最終点を含め、操作端末の画面遷移はFirebaseの完了を待たない。
+  // 先にローカル状態を確定・保存して即時描画し、同期はバックグラウンドで行う。
+  // これにより1ゲーム15点/21点等の終了時に、複数端末同期の待ちで画面が止まらない。
   state.rev += 1;
+  saveActiveMatchLocal();
   render();
-  const finalSync = pushRemote();
+  void pushRemote();
   if(gameFinished){
-    Promise.resolve(finalSync).finally(()=>{
-      // Firebase失敗時でも端末操作を止めない。ローカルには最終点が保存済み。
-      continueAfterFinishedGame(w);
-    });
+    continueAfterFinishedGame(w);
   }
 }
 
@@ -2743,7 +2741,7 @@ function continueAfterFinishedGame(winTeam){
     clearTimeout(pendingFinishTimer);
     pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openNextGamePrompt(winTeam); }, 120);
   }
-  // 画面遷移の保険。最終点の同期後にのみ動かす。
+  // 画面遷移の保険。同期状態に依存せず、ローカルの終了状態だけで復旧する。
   setTimeout(()=>{
     if(!state || state.status!=='finished' || !match) return;
     const sheetOpen = !!document.getElementById('sheetOverlay')?.classList.contains('active');
