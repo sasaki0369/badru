@@ -2672,13 +2672,24 @@ function awardPoint(winTeam){
   }
 
   const w = checkWinner();
+  let gameFinished = false;
   if(w){
     finishGame(w);
+    gameFinished = true;
   }
 
+  // 最終点も通常の得点と同じ順序で、まず15点/21点の状態を描画・保存・同期する。
+  // 結果画面への遷移を先に行うと、複数端末時に14点のcurrentMatchが残ったまま
+  // 大会Nowだけ15点になる競合が起こり得るため、最終点の確定を先行させる。
   state.rev += 1;
   render();
-  pushRemote();
+  const finalSync = pushRemote();
+  if(gameFinished){
+    Promise.resolve(finalSync).finally(()=>{
+      // Firebase失敗時でも端末操作を止めない。ローカルには最終点が保存済み。
+      continueAfterFinishedGame(w);
+    });
+  }
 }
 
 let pendingFinishTimer = null;
@@ -2696,15 +2707,18 @@ function finishGame(winTeam){
     match.status = 'finished';
     match.overallWinner = winTeam;
     match.finishedAt = state.finishedAt;
-    // 1ゲーム15点など最終点で、複数端末同期やSafariのタイマー遅延により
-    // finishedの得点盤だけが残る状態を避ける。結果画面は同期待ちにせず即時表示する。
+  }
+}
+
+function continueAfterFinishedGame(winTeam){
+  if(!state || state.status!=='finished' || !match) return;
+  if(match.status==='finished'){
     openScoreSheet();
   }else{
-    pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openNextGamePrompt(winTeam); }, 250);
+    clearTimeout(pendingFinishTimer);
+    pendingFinishTimer = setTimeout(()=>{ pendingFinishTimer = null; openNextGamePrompt(winTeam); }, 120);
   }
-
-  // 最終点到達後の画面遷移を保険でも確認する。iPad/Safariでタイマー処理が
-  // 一時的に遅延・中断しても、得点盤が finished のまま取り残されないようにする。
+  // 画面遷移の保険。最終点の同期後にのみ動かす。
   setTimeout(()=>{
     if(!state || state.status!=='finished' || !match) return;
     const sheetOpen = !!document.getElementById('sheetOverlay')?.classList.contains('active');
@@ -2713,7 +2727,7 @@ function finishGame(winTeam){
     if(sheetOpen || nextOpen || confirmOpen) return;
     if(match.status==='finished') openScoreSheet();
     else openNextGamePrompt(winTeam);
-  }, 900);
+  }, 700);
 }
 
 function openNextGamePrompt(prevWinTeam){
