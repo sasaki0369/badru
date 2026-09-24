@@ -2017,11 +2017,34 @@ function watchTaikaEventForLiteDispatch(){
   });
 }
 let taikaIntervalSettings={intervalEnabled:true,midIntervalSec:60,gameIntervalSec:120};
-function applyTaikaRulesToForm(rules){
+function applyTaikaIntervalSettings(rules){
   if(!rules) return;
   taikaIntervalSettings.intervalEnabled=rules.intervalEnabled!==false;
   taikaIntervalSettings.midIntervalSec=Math.max(0,Number(rules.midIntervalSec ?? 60)||0);
   taikaIntervalSettings.gameIntervalSec=Math.max(0,Number(rules.gameIntervalSec ?? 120)||0);
+  // ここでは「次に開始する試合」用の設定キャッシュだけを更新する。
+  // 開始済み試合の settings はスナップショットとして固定し、途中変更しない。
+}
+function applyTaikaLiveScoringRules(rules){
+  if(!rules || !settings || !state || state.status!=='ongoing') return;
+  // 大会途中の時間短縮等に対応し、得点制とセッティング条件も現在進行中の試合へ反映する。
+  // 既に記録済みの得点・ゲーム結果は変更しない。変更後の次の得点判定から新ルールを使う。
+  if(rules.points===15 || rules.points===21){
+    settings.pointsTarget=Number(rules.points);
+  }
+  if(typeof rules.deuce==='boolean') settings.deuce=rules.deuce;
+  if(settings.deuce){
+    const fallback=settings.pointsTarget===15 ? 21 : 30;
+    const dm=Number(rules.deuceMax);
+    settings.deuceMax=(Number.isFinite(dm) && dm>settings.pointsTarget) ? dm : fallback;
+  }else{
+    settings.deuceMax=settings.pointsTarget;
+  }
+  saveActiveMatchLocal();
+}
+function applyTaikaRulesToForm(rules){
+  if(!rules) return;
+  applyTaikaIntervalSettings(rules);
   if(rules.format === 'single' || rules.format === 'best3'){
     curFormat = rules.format;
     setSeg(segFormat, curFormat);
@@ -2136,8 +2159,12 @@ function startTaikaListener(){
   if(rulesRef){
     taikaRulesListenerRef = rulesRef;
     rulesRef.on('value', snap=>{
-      if(state && state.status === 'ongoing') return; // 試合中は上書きしない
-      applyTaikaRulesToForm(snap.val());
+      const rules=snap.val();
+      // 大会Nowの設定変更は、開始済み試合には適用しない。
+      // 設定画面側（次に開始する試合）だけを最新値へ更新する。
+      // 現在進行中の settings/state/match は変更しないため、複数端末でも試合途中に
+      // 得点制・セッティング・インターバル・試合形式が変化しない。
+      applyTaikaRulesToForm(rules);
     });
   }
   watchTaikaEventForLiteDispatch();
