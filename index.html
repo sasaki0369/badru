@@ -1063,6 +1063,17 @@ table.score-grid td.filled.team-b{
 .qr-scan-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.qr-scan-head strong{font-size:20px}.qr-scan-close{border:0;border-radius:10px;padding:9px 16px;background:#333;color:#fff;font-weight:800;font-size:16px}
 .qr-video-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:14px;overflow:hidden}.qr-video-wrap video{width:100%;height:100%;object-fit:cover}.qr-guide{position:absolute;inset:18%;border:4px solid #fff;border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.18);pointer-events:none}
 .qr-scan-msg{min-height:1.5em;margin-top:10px;text-align:center;font-size:15px;line-height:1.45;color:#ddd}
+
+/* 共有インターバル */
+#intervalOverlay{position:fixed;inset:0;z-index:85;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.18);pointer-events:auto;}
+#intervalOverlay.active{display:flex;}
+#intervalOverlay .interval-box{width:min(86vw,520px);background:rgba(20,20,20,.94);color:#fff;border-radius:24px;padding:24px 26px;text-align:center;box-shadow:0 16px 50px rgba(0,0,0,.38);}
+#intervalTitle{font-size:clamp(18px,3vw,28px);font-weight:800;margin-bottom:8px;}
+#intervalCountdown{font-size:clamp(72px,16vw,150px);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;margin:8px 0 18px;}
+#intervalStartBtn,#intervalUndoBtn{min-height:54px;border:0;border-radius:14px;font-size:clamp(18px,3vw,26px);font-weight:800;padding:10px 24px;}
+#intervalStartBtn{background:#fff;color:#111;min-width:180px;}
+#intervalStartBtn:disabled{opacity:.45;}
+#intervalUndoBtn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);margin-right:10px;}
 </style>
 
 </head>
@@ -1251,6 +1262,15 @@ table.score-grid td.filled.team-b{
     <h2>バドる の使い方</h2>
     <div class="help-modal-scroll" id="helpModalScroll"></div>
     <button class="help-modal-close" id="helpModalClose">閉じる</button>
+  </div>
+</div>
+
+<!-- 共有インターバル -->
+<div id="intervalOverlay" aria-live="polite">
+  <div class="interval-box">
+    <div id="intervalTitle">インターバル</div>
+    <div id="intervalCountdown">60</div>
+    <div><button id="intervalUndoBtn" type="button" style="display:none;">Undo</button><button id="intervalStartBtn" type="button">開始</button></div>
   </div>
 </div>
 
@@ -1995,8 +2015,11 @@ function watchTaikaEventForLiteDispatch(){
     // 試合の配信は大会Nowの「配信」ボタンだけで行う。バドる側からの自動割当は行わない。
   });
 }
+let taikaIntervalSettings={midIntervalSec:60,gameIntervalSec:120};
 function applyTaikaRulesToForm(rules){
   if(!rules) return;
+  taikaIntervalSettings.midIntervalSec=Math.max(0,Number(rules.midIntervalSec ?? 60)||0);
+  taikaIntervalSettings.gameIntervalSec=Math.max(0,Number(rules.gameIntervalSec ?? 120)||0);
   if(rules.format === 'single' || rules.format === 'best3'){
     curFormat = rules.format;
     setSeg(segFormat, curFormat);
@@ -2547,6 +2570,8 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
     pointsTarget: target,
     deuce: curDeuce,
     deuceMax: dMax,
+    midIntervalSec: taikaIntervalSettings.midIntervalSec,
+    gameIntervalSec: taikaIntervalSettings.gameIntervalSec,
     players,
     playerClubs: currentTeamClubs,
     firstServer,
@@ -2666,6 +2691,8 @@ function startGame(gameNumber, leftTeam, firstServerName, firstReceiverName){
     status: 'ongoing',
     winner: null,
     midGameEndsSwapped: false,
+    midIntervalTaken: false,
+    interval: null,
     initialServer: firstServerName,
     initialReceiver: firstReceiverName,
     startedAt: Date.now(),
@@ -2677,6 +2704,68 @@ function startGame(gameNumber, leftTeam, firstServerName, firstReceiverName){
   render();
   pushRemote();
 }
+
+/* ---------- 共有インターバル ---------- */
+let intervalTimer=null;
+function intervalSecondsLeft(){
+  if(!state || !state.interval || !state.interval.active) return 0;
+  return Math.max(0,Math.ceil((Number(state.interval.endsAt||0)-Date.now())/1000));
+}
+function renderIntervalOverlay(){
+  const ov=document.getElementById('intervalOverlay');
+  if(!ov) return;
+  const active=!!(state && state.interval && state.interval.active);
+  ov.classList.toggle('active',active);
+  clearInterval(intervalTimer); intervalTimer=null;
+  if(!active) return;
+  const it=state.interval;
+  document.getElementById('intervalTitle').textContent=it.type==='game'?'ゲーム間インターバル':'インターバル';
+  const cd=document.getElementById('intervalCountdown');
+  const tick=()=>{ cd.textContent=String(intervalSecondsLeft()); };
+  tick(); intervalTimer=setInterval(tick,250);
+  const start=document.getElementById('intervalStartBtn');
+  start.disabled=!hasCourtOperationRight();
+  start.textContent=hasCourtOperationRight()?'開始':'観戦中';
+  document.getElementById('intervalUndoBtn').style.display=(it.type==='game' && hasCourtOperationRight())?'inline-block':'none';
+}
+function beginSharedInterval(type, seconds, extra){
+  const sec=Math.max(0,Math.floor(Number(seconds)||0));
+  const now=Date.now();
+  state.interval=Object.assign({active:true,type:type,startedAt:now,endsAt:now+sec*1000,durationSec:sec},extra||{});
+  state.rev=(state.rev||0)+1;
+  saveActiveMatchLocal();
+  render();
+  void pushRemote();
+}
+function clearSharedInterval(sync){
+  if(!state) return;
+  state.interval=null;
+  state.rev=(state.rev||0)+1;
+  clearInterval(intervalTimer); intervalTimer=null;
+  document.getElementById('intervalOverlay')?.classList.remove('active');
+  saveActiveMatchLocal();
+  if(sync!==false) void pushRemote();
+}
+document.getElementById('intervalStartBtn').addEventListener('click',()=>{
+  if(!ensureCourtOperationRight() || !state || !state.interval || !state.interval.active) return;
+  const it=Object.assign({},state.interval);
+  if(it.type==='game'){
+    const gameNumber=Number(it.nextGameNumber)||state.gameNumber+1;
+    const prevWinTeam=it.prevWinTeam || state.winner || 'A';
+    const prevLeftTeam=state.leftTeam;
+    clearSharedInterval(false);
+    startGame(gameNumber,otherTeam(prevLeftTeam),settings.players[prevWinTeam][0],settings.players[otherTeam(prevWinTeam)][0]);
+  }else{
+    clearSharedInterval(true);
+    render();
+  }
+});
+document.getElementById('intervalUndoBtn').addEventListener('click',()=>{
+  if(!ensureCourtOperationRight()) return;
+  clearSharedInterval(false);
+  undoFinalPoint();
+  void pushRemote();
+});
 
 /* ---------- 得点ロジック ---------- */
 function snapshotState(){
@@ -2752,6 +2841,14 @@ function awardPoint(winTeam){
   }
 
   const w = checkWinner();
+  const midAt = settings.pointsTarget===15 ? 8 : (settings.pointsTarget===21 ? 11 : Math.ceil(settings.pointsTarget/2));
+  if(!w && !state.midIntervalTaken && (state.score.A>=midAt || state.score.B>=midAt)){
+    state.midIntervalTaken=true;
+    state.rev += 1;
+    try{ render(); }catch(e){}
+    beginSharedInterval('mid', Number(settings.midIntervalSec ?? 60));
+    return;
+  }
   if(w){
     // ゲームポイントは通常得点とは別経路で確定する。
     // Firebase・観戦端末・render()の成否を、操作端末の終了画面遷移の前提にしない。
@@ -2765,14 +2862,14 @@ function awardPoint(winTeam){
     // 終了UIを最優先で同期的に開く。Firebase応答やsetTimeoutを待たない。
     try{
       if(match.status==='finished') openScoreSheet();
-      else openNextGamePrompt(w);
+      else beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
     }catch(e){
       console.error('ゲーム終了画面の表示に失敗しました', e);
       // DOMの一時的な競合に備え、次のイベントループでもう一度だけ復旧する。
       setTimeout(()=>{
         try{
           if(match && match.status==='finished') openScoreSheet();
-          else if(state && state.status==='finished') openNextGamePrompt(w);
+          else if(state && state.status==='finished' && !(state.interval&&state.interval.active)) beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
         }catch(err){ console.error('ゲーム終了画面の再表示にも失敗しました', err); }
       },0);
     }
@@ -3137,6 +3234,7 @@ function computeCardStyle(leftDigits, rightDigits){
 
 function render(){
   if(!state || !match) return;
+  if(settings){ if(settings.midIntervalSec==null) settings.midIntervalSec=60; if(settings.gameIntervalSec==null) settings.gameIntervalSec=120; }
   const leftTeam = state.leftTeam;
   const rightTeam = otherTeam(leftTeam);
 
@@ -3166,6 +3264,7 @@ function render(){
       ? `${match.gameWins[leftTeam]} - ${match.gameWins[rightTeam]}`
       : '';
   }
+  renderIntervalOverlay();
 }
 
 /* ---------- タップ操作 ---------- */
@@ -3518,7 +3617,7 @@ function subscribeMatchRef(){
       showBoard();
       render();
       // 観戦端末も最終点を受信したら finished の得点盤で止めず、結果画面へ遷移する。
-      if(state && state.status==='finished' && match && match.status==='finished'){
+      if(state && state.status==='finished' && match && match.status==='finished' && !(state.interval&&state.interval.active)){
         openScoreSheet();
       }
     }catch(e){
