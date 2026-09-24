@@ -2015,9 +2015,10 @@ function watchTaikaEventForLiteDispatch(){
     // 試合の配信は大会Nowの「配信」ボタンだけで行う。バドる側からの自動割当は行わない。
   });
 }
-let taikaIntervalSettings={midIntervalSec:60,gameIntervalSec:120};
+let taikaIntervalSettings={intervalEnabled:true,midIntervalSec:60,gameIntervalSec:120};
 function applyTaikaRulesToForm(rules){
   if(!rules) return;
+  taikaIntervalSettings.intervalEnabled=rules.intervalEnabled!==false;
   taikaIntervalSettings.midIntervalSec=Math.max(0,Number(rules.midIntervalSec ?? 60)||0);
   taikaIntervalSettings.gameIntervalSec=Math.max(0,Number(rules.gameIntervalSec ?? 120)||0);
   if(rules.format === 'single' || rules.format === 'best3'){
@@ -2570,6 +2571,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
     pointsTarget: target,
     deuce: curDeuce,
     deuceMax: dMax,
+    intervalEnabled: taikaIntervalSettings.intervalEnabled,
     midIntervalSec: taikaIntervalSettings.midIntervalSec,
     gameIntervalSec: taikaIntervalSettings.gameIntervalSec,
     players,
@@ -2842,7 +2844,7 @@ function awardPoint(winTeam){
 
   const w = checkWinner();
   const midAt = settings.pointsTarget===15 ? 8 : (settings.pointsTarget===21 ? 11 : Math.ceil(settings.pointsTarget/2));
-  if(!w && !state.midIntervalTaken && (state.score.A>=midAt || state.score.B>=midAt)){
+  if(settings.intervalEnabled!==false && !w && !state.midIntervalTaken && (state.score.A>=midAt || state.score.B>=midAt)){
     state.midIntervalTaken=true;
     state.rev += 1;
     try{ render(); }catch(e){}
@@ -2862,14 +2864,22 @@ function awardPoint(winTeam){
     // 終了UIを最優先で同期的に開く。Firebase応答やsetTimeoutを待たない。
     try{
       if(match.status==='finished') openScoreSheet();
-      else beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
+      else if(settings.intervalEnabled===false){
+        const prevLeftTeam=state.leftTeam;
+        startGame(state.gameNumber+1,otherTeam(prevLeftTeam),settings.players[w][0],settings.players[otherTeam(w)][0]);
+      }else beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
     }catch(e){
       console.error('ゲーム終了画面の表示に失敗しました', e);
       // DOMの一時的な競合に備え、次のイベントループでもう一度だけ復旧する。
       setTimeout(()=>{
         try{
           if(match && match.status==='finished') openScoreSheet();
-          else if(state && state.status==='finished' && !(state.interval&&state.interval.active)) beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
+          else if(state && state.status==='finished' && !(state.interval&&state.interval.active)){
+            if(settings.intervalEnabled===false){
+              const prevLeftTeam=state.leftTeam;
+              startGame(state.gameNumber+1,otherTeam(prevLeftTeam),settings.players[w][0],settings.players[otherTeam(w)][0]);
+            }else beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
+          }
         }catch(err){ console.error('ゲーム終了画面の再表示にも失敗しました', err); }
       },0);
     }
@@ -3234,7 +3244,7 @@ function computeCardStyle(leftDigits, rightDigits){
 
 function render(){
   if(!state || !match) return;
-  if(settings){ if(settings.midIntervalSec==null) settings.midIntervalSec=60; if(settings.gameIntervalSec==null) settings.gameIntervalSec=120; }
+  if(settings){ if(settings.intervalEnabled==null) settings.intervalEnabled=true; if(settings.midIntervalSec==null) settings.midIntervalSec=60; if(settings.gameIntervalSec==null) settings.gameIntervalSec=120; }
   const leftTeam = state.leftTeam;
   const rightTeam = otherTeam(leftTeam);
 
