@@ -244,6 +244,40 @@ html,body{
   text-overflow:ellipsis;
 }
 
+/* スコア画面の下部操作は端末サイズに関係なく盤面内へ固定する。
+   スマホ横画面でもブラウザUI/セーフエリアで画面外へ押し出されないよう、
+   vh ではなく実寸ベースの高さを確保する。 */
+#board{
+  padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px));
+}
+#board .controls{
+  position:absolute;
+  left:0; right:0;
+  bottom:0;
+  z-index:30;
+  height:calc(64px + env(safe-area-inset-bottom, 0px));
+  min-height:64px;
+  padding:6px 12px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+#board .controls button{
+  min-height:50px;
+}
+@media (orientation:landscape) and (max-height:760px){
+  #board{ padding-bottom:calc(58px + env(safe-area-inset-bottom, 0px)); }
+  #board .controls{
+    height:calc(58px + env(safe-area-inset-bottom, 0px));
+    min-height:58px;
+    padding:4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+    gap:8px;
+  }
+  #board .controls button{
+    min-height:48px;
+    font-size:clamp(17px,2.2vw,22px);
+  }
+  #board .court-slots{ min-height:56px; }
+  #board .slot{ font-size:clamp(20px,3vw,34px); }
+}
+
 /* ---------- 下部ボタン行 ---------- */
 .controls{
   display:flex;
@@ -344,13 +378,13 @@ html,body{
   #app{ height:100dvh; }
 }
 @media (min-width:900px) and (orientation:landscape){
-  #board{ padding-bottom:clamp(58px,8.5dvh,82px); }
+  #board{ padding-bottom:calc(68px + env(safe-area-inset-bottom, 0px)); }
   #board .controls{
     position:absolute;
     left:0; right:0; bottom:0;
     z-index:20;
-    height:clamp(58px,8.5dvh,82px);
-    min-height:58px;
+    height:calc(68px + env(safe-area-inset-bottom, 0px));
+    min-height:68px;
     background:#050505;
     border-top:1px solid #2a2a2a;
   }
