@@ -2755,7 +2755,7 @@ function renderIntervalOverlay(){
   tick(); intervalTimer=setInterval(tick,250);
   const start=document.getElementById('intervalStartBtn');
   start.disabled=!hasCourtOperationRight();
-  start.textContent=hasCourtOperationRight()?'開始':'観戦中';
+  start.textContent=hasCourtOperationRight()?'再開':'観戦中';
   document.getElementById('intervalUndoBtn').style.display=(it.type==='game' && hasCourtOperationRight())?'inline-block':'none';
 }
 function beginSharedInterval(type, seconds, extra){
@@ -2783,8 +2783,9 @@ document.getElementById('intervalStartBtn').addEventListener('click',()=>{
     const gameNumber=Number(it.nextGameNumber)||state.gameNumber+1;
     const prevWinTeam=it.prevWinTeam || state.winner || 'A';
     const prevLeftTeam=state.leftTeam;
+    const nextLeftTeam=it.endsPreSwapped ? prevLeftTeam : otherTeam(prevLeftTeam);
     clearSharedInterval(false);
-    startGame(gameNumber,otherTeam(prevLeftTeam),settings.players[prevWinTeam][0],settings.players[otherTeam(prevWinTeam)][0]);
+    startGame(gameNumber,nextLeftTeam,settings.players[prevWinTeam][0],settings.players[otherTeam(prevWinTeam)][0]);
   }else{
     clearSharedInterval(true);
     render();
@@ -2792,6 +2793,8 @@ document.getElementById('intervalStartBtn').addEventListener('click',()=>{
 });
 document.getElementById('intervalUndoBtn').addEventListener('click',()=>{
   if(!ensureCourtOperationRight()) return;
+  const wasPreSwapped=!!(state.interval && state.interval.endsPreSwapped);
+  if(wasPreSwapped) state.leftTeam=otherTeam(state.leftTeam);
   clearSharedInterval(false);
   undoFinalPoint();
   void pushRemote();
@@ -2895,7 +2898,12 @@ function awardPoint(winTeam){
       else if(settings.intervalEnabled===false){
         const prevLeftTeam=state.leftTeam;
         startGame(state.gameNumber+1,otherTeam(prevLeftTeam),settings.players[w][0],settings.players[otherTeam(w)][0]);
-      }else beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
+      }else{
+        // ゲーム間インターバルは、次ゲームで使用するエンド配置へ先に切り替えてから開始する。
+        // これにより背景の最終スコアとゲームカウントも、新しい左右配置に合わせて表示される。
+        state.leftTeam=otherTeam(state.leftTeam);
+        beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w,endsPreSwapped:true});
+      }
     }catch(e){
       console.error('ゲーム終了画面の表示に失敗しました', e);
       // DOMの一時的な競合に備え、次のイベントループでもう一度だけ復旧する。
@@ -2906,7 +2914,10 @@ function awardPoint(winTeam){
             if(settings.intervalEnabled===false){
               const prevLeftTeam=state.leftTeam;
               startGame(state.gameNumber+1,otherTeam(prevLeftTeam),settings.players[w][0],settings.players[otherTeam(w)][0]);
-            }else beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w});
+            }else{
+              state.leftTeam=otherTeam(state.leftTeam);
+              beginSharedInterval('game', Number(settings.gameIntervalSec ?? 120), {nextGameNumber:state.gameNumber+1,prevWinTeam:w,endsPreSwapped:true});
+            }
           }
         }catch(err){ console.error('ゲーム終了画面の再表示にも失敗しました', err); }
       },0);
