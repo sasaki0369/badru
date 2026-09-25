@@ -2713,6 +2713,8 @@ let offlineStartedAt = null;
 let offlineBaseOwnerAcquiredAt = null;
 let offlineConflict = false;
 let reconnectSyncBusy = false;
+let reconnectRetryTimer = null;
+let reconnectRetryCount = 0;
 function syncQueueScopeKey(kind){
   const ev=(taikaLink&&taikaLink.eventId)||'standalone';
   const court=(taikaLink&&taikaLink.courtNo)||settings?.courtNumber||'0';
@@ -2728,20 +2730,41 @@ function ensureNetworkBadge(){ let b=document.getElementById('networkSyncBadge')
 function renderNetworkBadge(text,conflict){ const b=ensureNetworkBadge(); if(!text){b.style.display='none';return;} b.textContent=text;b.style.display='block';b.style.background=conflict?'#9a3412':'#8b1e1e'; }
 function markOffline(){ if(!offlineStartedAt){offlineStartedAt=Date.now();offlineBaseOwnerAcquiredAt=(courtLockOwner&&courtLockOwner.deviceId===DEVICE_ID)?courtLockOwner.acquiredAt:null;} renderNetworkBadge('オフライン・端末内で継続中',false);queueOfflineCurrentState(); }
 function sameRemoteAssignment(remote,pending){ if(!remote||!remote.match||!pending)return false; const aid=remote.assignmentId||remote.match.assignmentId||null,mid=remote.match.id||remote.match.matchCode||null; if(pending.assignmentId&&aid)return pending.assignmentId===aid; return !!(pending.matchId&&mid&&pending.matchId===mid); }
+function scheduleReconnectRetry(){
+  if(reconnectRetryTimer || !firebaseConnected || offlineConflict) return;
+  const delay=Math.min(10000,1000*Math.pow(2,Math.min(reconnectRetryCount,3)));
+  reconnectRetryCount++;
+  reconnectRetryTimer=setTimeout(()=>{reconnectRetryTimer=null;void reconcileOfflineSync();},delay);
+}
+function clearReconnectRetry(){ if(reconnectRetryTimer){clearTimeout(reconnectRetryTimer);reconnectRetryTimer=null;} reconnectRetryCount=0; }
 async function reconcileOfflineSync(){
  if(reconnectSyncBusy||!firebaseConnected||!(taikaLink&&taikaLink.enabled)||!taikaCourtRef())return; reconnectSyncBusy=true;renderNetworkBadge('再同期を確認中…',false);
  try{
   const lr=courtLockPathRef(); const [pf,ps,rs,ls]=await Promise.all([syncQueueGet('finished'),syncQueueGet('current'),taikaCourtRef().once('value'),lr?lr.once('value'):Promise.resolve(null)]); const pending=pf||ps;
-  if(!pending){offlineStartedAt=null;offlineBaseOwnerAcquiredAt=null;offlineConflict=false;renderNetworkBadge('',false);return;}
+  if(!pending){clearReconnectRetry();offlineStartedAt=null;offlineBaseOwnerAcquiredAt=null;offlineConflict=false;renderNetworkBadge('',false);return;}
+  // 終了結果が無く、現在この端末にも進行中試合が無い場合の current は古い一時データ。
+  // 配信待ち画面まで「未同期」を残し続けないよう安全に破棄する。
+  if(!pf && ps && (!match || match.status!=='ongoing')){
+    await syncQueueDelete('current'); clearReconnectRetry(); offlineStartedAt=null;offlineBaseOwnerAcquiredAt=null;offlineConflict=false;renderNetworkBadge('',false);return;
+  }
   const remote=rs&&rs.val(),lock=ls&&ls.val(); const same=sameRemoteAssignment(remote,pending); const otherNewOwner=!!(lock&&lock.deviceId&&lock.deviceId!==DEVICE_ID&&(!pending.ownerAcquiredAt||Number(lock.acquiredAt||0)>Number(pending.ownerAcquiredAt||0)));
-  if(!same||otherNewOwner){offlineConflict=true;renderNetworkBadge('未同期あり・本部確認が必要',true);showToast('通信中に別端末または別試合の更新を検出しました。自動上書きせず端末内に保持しています');return;}
-  const now=Date.now(); if(lr){await lr.set({deviceId:DEVICE_ID,acquiredAt:pending.ownerAcquiredAt||now,heartbeatAt:now});courtLockOwned=true;courtLockOwner={deviceId:DEVICE_ID,acquiredAt:pending.ownerAcquiredAt||now,heartbeatAt:now};}
+  if(!same||otherNewOwner){clearReconnectRetry();offlineConflict=true;renderNetworkBadge('未同期あり・本部確認が必要',true);showToast('通信中に別端末または別試合の更新を検出しました。自動上書きせず端末内に保持しています');return;}
+  // ロックが既に自端末なら再取得書込みは不要。通信復旧時の余計な失敗点を増やさない。
+  const now=Date.now();
+  if(lr && (!lock || lock.deviceId===DEVICE_ID)){
+    try{ await lr.update({deviceId:DEVICE_ID,acquiredAt:(lock&&lock.acquiredAt)||pending.ownerAcquiredAt||now,heartbeatAt:now}); courtLockOwned=true; courtLockOwner={deviceId:DEVICE_ID,acquiredAt:(lock&&lock.acquiredAt)||pending.ownerAcquiredAt||now,heartbeatAt:now}; }catch(e){ console.warn('ロックheartbeat再開は後続同期と分離',e); }
+  }
   if(pf){ const tr=await taikaCourtRef().transaction(court=>{if(!court||court.status!=='live'||!court.match||!sameRemoteAssignment(court,pf))return;return Object.assign({},court,{status:'idle',match:null,live:null,assignmentId:null,lastResult:pf.payload,finishedAt:Date.now(),updatedAt:Date.now()});}); if(!(tr&&tr.committed))throw new Error('終了結果の再同期競合'); await syncQueueDelete('finished');await syncQueueDelete('current'); }
-  else if(ps){ if(matchRef)await matchRef.set({deviceId:DEVICE_ID,ownerAcquiredAt:(courtLockOwner&&courtLockOwner.acquiredAt)||null,updatedAt:Date.now(),settings:ps.settings,state:ps.state,match:ps.match}); await taikaCourtRef().child('live').set({deviceId:DEVICE_ID,ownerAcquiredAt:(courtLockOwner&&courtLockOwner.acquiredAt)||null,scoreA:ps.state.score.A,scoreB:ps.state.score.B,gameWinsA:ps.match.gameWins.A,gameWinsB:ps.match.gameWins.B,sidesSwapped:!!ps.sidesSwapped,snapshot:{settings:ps.settings,state:ps.state,match:ps.match},updatedAt:Date.now()}); await syncQueueDelete('current'); }
-  offlineStartedAt=null;offlineBaseOwnerAcquiredAt=null;offlineConflict=false;renderNetworkBadge('同期完了',false);setTimeout(()=>{if(firebaseConnected&&!offlineConflict)renderNetworkBadge('',false)},1200);
- }catch(e){console.warn('オフライン再同期失敗',e);renderNetworkBadge('未同期・再試行待ち',false);} finally{reconnectSyncBusy=false;}
+  else if(ps){
+    // 大会Nowが見る live を先に復旧。currentMatch は端末引継ぎ用なので失敗してもlive同期を妨げない。
+    await taikaCourtRef().child('live').set({deviceId:DEVICE_ID,ownerAcquiredAt:(courtLockOwner&&courtLockOwner.acquiredAt)||ps.ownerAcquiredAt||null,scoreA:ps.state.score.A,scoreB:ps.state.score.B,gameWinsA:ps.match.gameWins.A,gameWinsB:ps.match.gameWins.B,sidesSwapped:!!ps.sidesSwapped,snapshot:{settings:ps.settings,state:ps.state,match:ps.match},updatedAt:Date.now()});
+    if(matchRef) matchRef.set({deviceId:DEVICE_ID,ownerAcquiredAt:(courtLockOwner&&courtLockOwner.acquiredAt)||ps.ownerAcquiredAt||null,updatedAt:Date.now(),settings:ps.settings,state:ps.state,match:ps.match}).catch(e=>console.warn('currentMatch再同期失敗（live同期済み）',e));
+    await syncQueueDelete('current');
+  }
+  clearReconnectRetry();offlineStartedAt=null;offlineBaseOwnerAcquiredAt=null;offlineConflict=false;renderNetworkBadge('同期完了',false);setTimeout(()=>{if(firebaseConnected&&!offlineConflict)renderNetworkBadge('',false)},1200);
+ }catch(e){console.warn('オフライン再同期失敗',e);renderNetworkBadge('未同期・再試行待ち',false);scheduleReconnectRetry();} finally{reconnectSyncBusy=false;}
 }
-function startConnectionMonitor(){ if(!dbReady||!db)return; try{db.ref('.info/connected').on('value',snap=>{const connected=snap.val()===true,was=firebaseConnected;firebaseConnected=connected;if(!connected)markOffline();else if(!was||offlineStartedAt)setTimeout(()=>void reconcileOfflineSync(),250);});}catch(e){} }
+function startConnectionMonitor(){ if(!dbReady||!db)return; try{db.ref('.info/connected').on('value',snap=>{const connected=snap.val()===true,was=firebaseConnected;firebaseConnected=connected;if(!connected){clearReconnectRetry();markOffline();}else if(!was||offlineStartedAt){clearReconnectRetry();setTimeout(()=>void reconcileOfflineSync(),250);}});}catch(e){} }
 
 /* ---------- 使い方モーダル ---------- */
 const HELP_SECTIONS = [
